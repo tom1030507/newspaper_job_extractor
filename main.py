@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 # 檢查一個 Bounding Box 是否被另一個包含
-def is_contained_bbox(bbox1, bbox2, tolerance=10):
+def is_contained_bbox(bbox1, bbox2, tolerance=5):
     """檢查 bbox1 是否完全被 bbox2 包含 (使用 Bounding Box 坐標)"""
     x1, y1, w1, h1 = bbox1
     x2, y2, w2, h2 = bbox2
@@ -111,7 +111,7 @@ for i, contour in enumerate(valid_contours_initial):
     w = min(w, image.shape[1] - x)
     h = min(h, image.shape[0] - y)
     if w > 0 and h > 0:
-        blocks_info.append(((x, y, w, h), f'{x}_{y}_{x + w}_{y + h}.png')) # Store bbox directly
+        blocks_info.append(((x, y, w, h), f'{x}_{y}_{x + w}_{y + h}.jpg')) # Store bbox directly
         initial_blocks_found += 1
 print(f"第一次過濾：過濾掉 {contained_count_initial} 個被包含輪廓，記錄 {initial_blocks_found} 個初始區塊信息。")
 
@@ -146,16 +146,16 @@ if blocks_info:
             if end_y > relative_y and end_x > relative_x:
                  mask[relative_y:end_y, relative_x:end_x] = 255
 
-        mask_unprocessed_path = os.path.join(output_folder, image_name + '_mask_unprocessed.png')
+        mask_unprocessed_path = os.path.join(output_folder, image_name + '_mask_unprocessed.jpg')
         cv2.imwrite(mask_unprocessed_path, mask)
         print(f"已保存未處理的遮罩圖片：{mask_unprocessed_path}")
 
-        kernel_size = 15
+        kernel_size = 30
         kernel = np.ones((kernel_size, kernel_size), np.uint8)
-        mask = cv2.dilate(mask, kernel, iterations=1)
-        mask = cv2.erode(mask, kernel, iterations=1)
+        mask = cv2.dilate(mask, kernel, iterations=3)
+        mask = cv2.erode(mask, kernel, iterations=3)
         print(f"對遮罩進行形態學操作 (膨脹後腐蝕，核心大小 {kernel_size})")
-        mask_processed_path = os.path.join(output_folder, image_name + '_mask_processed.png')
+        mask_processed_path = os.path.join(output_folder, image_name + '_mask_processed.jpg')
         cv2.imwrite(mask_processed_path, mask)
         print(f"已保存形態學處理後的遮罩圖片：{mask_processed_path}")
 
@@ -252,7 +252,7 @@ if blocks_info:
             # --- END: Overlap Check ---
 
             # If passes all checks, add to list
-            missing_areas_info.append((bbox_missing, f'missing_{i}_{orig_x}_{orig_y}_{orig_x + orig_w}_{orig_y + orig_h}.png'))
+            missing_areas_info.append((bbox_missing, f'missing_{i}_{orig_x}_{orig_y}_{orig_x + orig_w}_{orig_y + orig_h}.jpg'))
             missing_area_found_count += 1
 
         print(f"過濾後，記錄 {missing_area_found_count} 個有效未填充區域。")
@@ -418,7 +418,7 @@ if final_regions_info:
             if placement_errors > 0:
                  print(f"合成過程中出現 {placement_errors} 次放置錯誤。")
 
-            final_combined_path = os.path.join(output_folder, image_name + '_final_combined.png')
+            final_combined_path = os.path.join(output_folder, image_name + '_final_combined.jpg')
             cv2.imwrite(final_combined_path, combined_final)
             print(f"已保存最終合併圖片：{final_combined_path}")
 else:
