@@ -91,11 +91,21 @@ def process_image(image, output_folder, image_name):
 
     for i, contour in enumerate(valid_contours_initial):
         bbox_i = temp_initial_bboxes[i]
+        if bbox_i is None:  # 跳過已被移除的 Bounding Box
+            continue
         is_contained_by_others = False
         for j, other_bbox in enumerate(temp_initial_bboxes):
-            if i != j and is_contained_bbox(bbox_i, other_bbox):
-                is_contained_by_others = True
-                break
+            if i != j and other_bbox is not None and is_contained_bbox(bbox_i, other_bbox):  # 確保 other_bbox 不是 None
+                # 比較兩個 Bounding Box 的面積，保留較大的
+                area_i = bbox_i[2] * bbox_i[3]
+                area_j = other_bbox[2] * other_bbox[3]
+                if area_i >= area_j:
+                    # 保留 bbox_i，移除 other_bbox
+                    temp_initial_bboxes[j] = None  # 標記為已移除
+                else:
+                    # 保留 other_bbox，移除 bbox_i
+                    is_contained_by_others = True
+                    break
         if is_contained_by_others:
             contained_count_initial += 1
             continue
@@ -107,6 +117,10 @@ def process_image(image, output_folder, image_name):
         if w > 0 and h > 0:
             blocks_info.append(((x, y, w, h), f'{x}_{y}_{x + w}_{y + h}.jpg'))
             initial_blocks_found += 1
+
+    # 移除標記為 None 的 Bounding Box
+    temp_initial_bboxes = [bbox for bbox in temp_initial_bboxes if bbox is not None]
+
     print(f"第一次過濾：過濾掉 {contained_count_initial} 個被包含輪廓，記錄 {initial_blocks_found} 個初始區塊信息。")
 
     initial_block_bboxes = [info[0] for info in blocks_info]
@@ -399,5 +413,5 @@ def main(input_path, output_folder_base, dpi=300):
 if __name__ == "__main__":
     # 使用示例
     input_path = 'newspaper1.jpg'
-    output_folder_base = input_path + '_blocks_0331'
+    output_folder_base = input_path + '_blocks_0401'
     main(input_path, output_folder_base, dpi=200)
