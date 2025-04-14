@@ -1,17 +1,17 @@
 import cv2
 import numpy as np
 import os
-import fitz  # PyMuPDF
+import fitz
 
-# 檢查一個 Bounding Box 是否被另一個包含
+# Check if one bounding box is contained within another
 def is_contained_bbox(bbox1, bbox2, tolerance=10):
-    """檢查 bbox1 是否完全被 bbox2 包含 (使用 Bounding Box 坐標)"""
+    """Check if bbox1 is completely contained within bbox2 (using bounding box coordinates)"""
     x1, y1, w1, h1 = bbox1
     x2, y2, w2, h2 = bbox2
     return (x1 >= (x2 - tolerance) and y1 >= (y2 - tolerance) and
             (x1 + w1) <= (x2 + w2 + tolerance) and (y1 + h1) <= (y2 + h2 + tolerance))
 
-# 計算兩個矩形的交集面積
+# Calculate intersection area between two rectangles
 def intersection_area(boxA, boxB):
     xA = max(boxA[0], boxB[0])
     yA = max(boxA[1], boxB[1])
@@ -23,37 +23,37 @@ def intersection_area(boxA, boxB):
         return inter_width * inter_height
     return 0
 
-# 處理單張圖片的函數（直接接收圖像數據）
+# Function to process a single image (directly receives image data)
 def process_image(image, output_folder, image_name):
-    """處理圖像數據，提取區塊並保存結果"""
+    """Process image data, extract blocks and save results"""
     if image is None:
-        print(f"圖像數據為空，無法處理：{image_name}")
+        print(f"Image data is empty, cannot process: {image_name}")
         return
     
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-        print(f"已創建資料夾：{output_folder}")
+        print(f"Created folder: {output_folder}")
 
-    # 保存原始圖片到輸出資料夾
+    # Save original image to output folder
     original_image_path = os.path.join(output_folder, f"{image_name}_original.jpg")
     cv2.imwrite(original_image_path, image)
-    print(f"已保存原始圖片：{original_image_path}")
+    print(f"Saved original image: {original_image_path}")
 
-    print(f"開始處理圖像：{image_name}, 尺寸：{image.shape}")
+    print(f"Started processing image: {image_name}, dimensions: {image.shape}")
 
-    # 預處理圖片
+    # Preprocess image
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                    cv2.THRESH_BINARY_INV, 11, 2)
     edges = cv2.Canny(thresh, 100, 200)
-    print("圖片預處理完成")
+    print("Image preprocessing completed")
 
-    # 檢測輪廓
+    # Detect contours
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    print(f"檢測到初始輪廓數量：{len(contours)}")
+    print(f"Detected initial contours: {len(contours)}")
 
-    # 過濾過大的輪廓
+    # Filter out oversized contours
     max_area_threshold = 0.2 * image.shape[0] * image.shape[1]
     filtered_contours_size = []
     large_contours_count = 0
@@ -64,9 +64,9 @@ def process_image(image, output_folder, image_name):
             large_contours_count += 1
             continue
         filtered_contours_size.append(contour)
-    print(f"過濾掉 {large_contours_count} 個過大輪廓，剩餘：{len(filtered_contours_size)}")
+    print(f"Filtered out {large_contours_count} oversized contours, remaining: {len(filtered_contours_size)}")
 
-    # 過濾掉太小的噪點和不合適長寬比的輪廓
+    # Filter out small noise and contours with inappropriate aspect ratios
     valid_contours_initial = []
     small_noise_count = 0
     aspect_ratio_fail_count = 0
@@ -81,9 +81,9 @@ def process_image(image, output_folder, image_name):
                 aspect_ratio_fail_count += 1
         else:
             small_noise_count += 1
-    print(f"過濾掉 {small_noise_count} 個過小輪廓，{aspect_ratio_fail_count} 個長寬比不符輪廓，剩餘有效輪廓：{len(valid_contours_initial)}")
+    print(f"Filtered out {small_noise_count} undersized contours, {aspect_ratio_fail_count} contours with inappropriate aspect ratios, remaining valid contours: {len(valid_contours_initial)}")
 
-    # 第一次過濾包含關係 (僅在初始輪廓之間)
+    # First pass to filter containment relationships (only between initial contours)
     blocks_info = []
     contained_count_initial = 0
     initial_blocks_found = 0
@@ -91,19 +91,19 @@ def process_image(image, output_folder, image_name):
 
     for i, contour in enumerate(valid_contours_initial):
         bbox_i = temp_initial_bboxes[i]
-        if bbox_i is None:  # 跳過已被移除的 Bounding Box
+        if bbox_i is None:  # Skip already removed bounding boxes
             continue
         is_contained_by_others = False
         for j, other_bbox in enumerate(temp_initial_bboxes):
-            if i != j and other_bbox is not None and is_contained_bbox(bbox_i, other_bbox):  # 確保 other_bbox 不是 None
-                # 比較兩個 Bounding Box 的面積，保留較大的
+            if i != j and other_bbox is not None and is_contained_bbox(bbox_i, other_bbox):  # Ensure other_bbox is not None
+                # Compare areas of the two bounding boxes, keep the larger one
                 area_i = bbox_i[2] * bbox_i[3]
                 area_j = other_bbox[2] * other_bbox[3]
                 if area_i >= area_j:
-                    # 保留 bbox_i，移除 other_bbox
-                    temp_initial_bboxes[j] = None  # 標記為已移除
+                    # Keep bbox_i, remove other_bbox
+                    temp_initial_bboxes[j] = None  # Mark as removed
                 else:
-                    # 保留 other_bbox，移除 bbox_i
+                    # Keep other_bbox, remove bbox_i
                     is_contained_by_others = True
                     break
         if is_contained_by_others:
@@ -118,14 +118,14 @@ def process_image(image, output_folder, image_name):
             blocks_info.append(((x, y, w, h), f'{x}_{y}_{x + w}_{y + h}.jpg'))
             initial_blocks_found += 1
 
-    # 移除標記為 None 的 Bounding Box
+    # Remove bounding boxes marked as None
     temp_initial_bboxes = [bbox for bbox in temp_initial_bboxes if bbox is not None]
 
-    print(f"第一次過濾：過濾掉 {contained_count_initial} 個被包含輪廓，記錄 {initial_blocks_found} 個初始區塊信息。")
+    print(f"First filtering pass: Filtered out {contained_count_initial} contained contours, recorded {initial_blocks_found} initial block information.")
 
     initial_block_bboxes = [info[0] for info in blocks_info]
 
-    # 處理未填充區域
+    # Process unfilled areas
     missing_areas_info = []
     if blocks_info:
         all_xs = [b[0] for b in initial_block_bboxes]
@@ -154,7 +154,7 @@ def process_image(image, output_folder, image_name):
 
             mask_unprocessed_path = os.path.join(output_folder, f'{image_name}_mask_unprocessed.jpg')
             cv2.imwrite(mask_unprocessed_path, mask)
-            print(f"已保存未處理的遮罩圖片：{mask_unprocessed_path}")
+            print(f"Saved unprocessed mask image: {mask_unprocessed_path}")
 
             kernel_size = 30
             kernel = np.ones((kernel_size, kernel_size), np.uint8)
@@ -162,12 +162,12 @@ def process_image(image, output_folder, image_name):
             mask = cv2.erode(mask, kernel, iterations=3)
             mask_processed_path = os.path.join(output_folder, f'{image_name}_mask_processed.jpg')
             cv2.imwrite(mask_processed_path, mask)
-            print(f"已保存形態學處理後的遮罩圖片：{mask_processed_path}")
+            print(f"Saved morphologically processed mask image: {mask_processed_path}")
 
-            # 找出未填充區域並進行重疊檢查
+            # Find unfilled areas and check for overlaps
             inv_mask = cv2.bitwise_not(mask)
             missing_contours, _ = cv2.findContours(inv_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            print(f"在處理後的遮罩中檢測到 {len(missing_contours)} 個潛在的未填充區域輪廓。")
+            print(f"Detected {len(missing_contours)} potential unfilled area contours in the processed mask.")
 
             min_area_threshold_missing = 5000
             min_dim_missing = 120
@@ -241,20 +241,20 @@ def process_image(image, output_folder, image_name):
                 missing_areas_info.append((bbox_missing, f'missing_{i}_{orig_x}_{orig_y}_{orig_x + orig_w}_{orig_y + orig_h}.jpg'))
                 missing_area_found_count += 1
 
-            print(f"過濾後，記錄 {missing_area_found_count} 個有效未填充區域。")
-            print(f"  因尺寸/比例跳過: {skipped_missing_area_count_filter} 個。")
-            print(f"  因與初始區塊重疊 > {overlap_threshold*100}% 跳過: {skipped_missing_area_count_overlap} 個。")
+            print(f"After filtering, recorded {missing_area_found_count} valid unfilled areas.")
+            print(f"  Skipped due to size/ratio: {skipped_missing_area_count_filter}.")
+            print(f"  Skipped due to overlap > {overlap_threshold*100}% with initial blocks: {skipped_missing_area_count_overlap}.")
         else:
-            print("遮罩尺寸無效，跳過未填充區域檢測。")
+            print("Invalid mask dimensions, skipping unfilled area detection.")
     else:
-        print("沒有找到任何初始區塊，無法進行未填充區域檢測。")
+        print("No initial blocks found, cannot perform unfilled area detection.")
 
-    print("初始分割與未填充區域提取（含重疊檢查）完成！")
+    print("Initial segmentation and unfilled area extraction (with overlap checking) completed!")
 
-    # 最終包含關係檢查
-    print("\n開始最終包含關係檢查...")
+    # Final containment check
+    print("\nStarting final containment check...")
     all_candidate_regions = blocks_info + missing_areas_info
-    print(f"合併初始區塊和有效未填充區域，總計 {len(all_candidate_regions)} 個候選區域。")
+    print(f"Combined initial blocks and valid unfilled areas, total of {len(all_candidate_regions)} candidate regions.")
 
     final_regions_info = []
     if all_candidate_regions:
@@ -273,12 +273,12 @@ def process_image(image, output_folder, image_name):
                     break
         final_regions_info = [all_candidate_regions[i] for i in sorted(list(indices_to_keep))]
         discarded_count = len(all_candidate_regions) - len(final_regions_info)
-        print(f"最終檢查完成，移除了 {discarded_count} 個被包含的區域，剩餘 {len(final_regions_info)} 個最終區域。")
+        print(f"Final check completed, removed {discarded_count} contained regions, remaining {len(final_regions_info)} final regions.")
     else:
-        print("沒有候選區域可供最終檢查。")
+        print("No candidate regions available for final check.")
 
-    # 保存最終區塊圖片
-    print("\n開始保存最終篩選後的區塊圖片...")
+    # Save final block images
+    print("\nStarting to save final filtered block images...")
     saved_count_final = 0
     for (x, y, w, h), filename in final_regions_info:
         final_block = image[y:y + h, x:x + w]
@@ -287,11 +287,11 @@ def process_image(image, output_folder, image_name):
             cv2.imwrite(output_path, final_block)
             saved_count_final += 1
         else:
-            print(f"警告：無法保存空的最終區塊，文件名 {filename}，坐標 (x={x}, y={y}, w={w}, h={h})")
-    print(f"保存了 {saved_count_final} 個最終區塊圖片。")
+            print(f"Warning: Cannot save empty final block, filename {filename}, coordinates (x={x}, y={y}, w={w}, h={h})")
+    print(f"Saved {saved_count_final} final block images.")
 
-    # 合成最終圖片
-    print("\n開始合成 final_combined 圖片...")
+    # Create final combined image
+    print("\nStarting to create final_combined image...")
     if final_regions_info:
         all_final_bboxes = [b[0] for b in final_regions_info]
         all_final_xs = [b[0] for b in all_final_bboxes]
@@ -300,7 +300,7 @@ def process_image(image, output_folder, image_name):
         all_final_yhs = [b[1] + b[3] for b in all_final_bboxes]
 
         if not all_final_xs:
-            print("沒有最終區塊信息，無法合成 final_combined 圖片。")
+            print("No final block information, cannot create final_combined image.")
         else:
             min_x_final = min(all_final_xs)
             min_y_final = min(all_final_ys)
@@ -310,10 +310,10 @@ def process_image(image, output_folder, image_name):
             final_width = max_x_final - min_x_final
 
             if final_height <= 0 or final_width <= 0:
-                print(f"計算出的最終合併圖片尺寸無效 (h={final_height}, w={final_width})，無法合成。")
+                print(f"Calculated final combined image dimensions are invalid (h={final_height}, w={final_width}), cannot create combined image.")
             else:
                 combined_final = np.zeros((final_height, final_width, 3), dtype=np.uint8)
-                print(f"創建最終合併圖片畫布，尺寸：(h={final_height}, w={final_width})")
+                print(f"Created final combined image canvas, dimensions: (h={final_height}, w={final_width})")
                 placement_errors = 0
                 for (x, y, w, h), filename in final_regions_info:
                     x, y, w, h = int(x), int(y), int(w), int(h)
@@ -325,7 +325,7 @@ def process_image(image, output_folder, image_name):
                     target_y_start = relative_y
                     target_x_start = relative_x
                     if block.size == 0:
-                        print(f"警告：提取的區塊為空，跳過放置。文件名: {filename}")
+                        print(f"Warning: Extracted block is empty, skipping placement. Filename: {filename}")
                         continue
                     slice_h = min(h, final_height - target_y_start)
                     slice_w = min(w, final_width - target_x_start)
@@ -354,36 +354,35 @@ def process_image(image, output_folder, image_name):
                                     combined_final[target_y_start:target_y_start + slice_h,
                                                    target_x_start:target_x_start + slice_w] = resized_source
                             except Exception as e:
-                                print(f"放置區塊時發生錯誤，文件名: {filename}，錯誤: {e}")
+                                print(f"Error occurred when placing block, filename: {filename}, error: {e}")
                                 placement_errors += 1
 
                 if placement_errors > 0:
-                    print(f"合成過程中出現 {placement_errors} 次放置錯誤。")
+                    print(f"Encountered {placement_errors} placement errors during composition.")
                 final_combined_path = os.path.join(output_folder, f'{image_name}_final_combined.jpg')
                 cv2.imwrite(final_combined_path, combined_final)
-                print(f"已保存最終合併圖片：{final_combined_path}")
+                print(f"Saved final combined image: {final_combined_path}")
     else:
-        print("沒有最終篩選後的區塊信息，無法合成 final_combined 圖片。")
+        print("No final filtered block information, cannot create final_combined image.")
 
-    print("\n所有處理步驟完成！")
+    print("\nAll processing steps completed!")
 
-# 主函數，處理 PDF 或圖片輸入
+# Main function to process PDF or image input
 def main(input_path, output_folder_base, dpi=300):
-    """直接在記憶體中處理 PDF 或圖片，無需中間 JPG 檔案"""
     if input_path.lower().endswith('.pdf'):
         pdf_document = fitz.open(input_path)
         pdf_base_name = os.path.splitext(os.path.basename(input_path))[0]
 
         for page_num in range(len(pdf_document)):
             page = pdf_document.load_page(page_num)
-            # 動態調整 DPI
+            # Dynamically adjust DPI
             page_rect = page.rect
             width_inch = page_rect.width / 72
             height_inch = page_rect.height / 72
             suggested_dpi = max(dpi, int(2000 / max(width_inch, height_inch)))
             pix = page.get_pixmap(dpi=suggested_dpi, alpha=False, annots=True)
 
-            # 直接轉為 OpenCV 格式
+            # Direct conversion to OpenCV format
             img_array = np.frombuffer(pix.samples, dtype=np.uint8)
             image = img_array.reshape((pix.height, pix.width, pix.n))
             if pix.n == 3:  # RGB
@@ -392,26 +391,25 @@ def main(input_path, output_folder_base, dpi=300):
                 image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
 
             if image is None:
-                print(f"無法將 PDF 第 {page_num + 1} 頁轉換為圖像，跳過")
+                print(f"Unable to convert page {page_num + 1} of PDF to image, skipping")
                 continue
 
             image_name = f"{pdf_base_name}_page{page_num + 1}"
             page_output_folder = f"{output_folder_base}_page{page_num + 1}"
-            print(f"\n處理 PDF 第 {page_num + 1} 頁，尺寸：{image.shape}")
+            print(f"\nProcessing PDF page {page_num + 1}, dimensions: {image.shape}")
             process_image(image, page_output_folder, image_name)
 
         pdf_document.close()
     else:
         image = cv2.imread(input_path)
         if image is None:
-            print(f"無法讀取圖片，請檢查路徑！ Path: {input_path}")
+            print(f"Cannot read image, please check the path! Path: {input_path}")
             return
         image_name = os.path.splitext(os.path.basename(input_path))[0]
-        print(f"成功讀取圖片：{input_path}, 尺寸：{image.shape}")
+        print(f"Successfully read image: {input_path}, dimensions: {image.shape}")
         process_image(image, output_folder_base, image_name)
 
 if __name__ == "__main__":
-    # 使用示例
     input_path = 'newspaper1.jpg'
-    output_folder_base = input_path + '_blocks_0401'
+    output_folder_base = input_path + '_blocks'
     main(input_path, output_folder_base, dpi=200)
