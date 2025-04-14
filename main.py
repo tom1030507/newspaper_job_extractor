@@ -1,7 +1,10 @@
 import cv2
 import numpy as np
 import os
-import fitz
+import fitz  # PyMuPDF
+
+# Debug flag - set to 1 to save additional debug images
+debug = 0
 
 # Check if one bounding box is contained within another
 def is_contained_bbox(bbox1, bbox2, tolerance=10):
@@ -34,10 +37,11 @@ def process_image(image, output_folder, image_name):
         os.makedirs(output_folder)
         print(f"Created folder: {output_folder}")
 
-    # Save original image to output folder
-    original_image_path = os.path.join(output_folder, f"{image_name}_original.jpg")
-    cv2.imwrite(original_image_path, image)
-    print(f"Saved original image: {original_image_path}")
+    # Save original image to output folder only if debug is enabled
+    if debug == 1:
+        original_image_path = os.path.join(output_folder, f"{image_name}_original.jpg")
+        cv2.imwrite(original_image_path, image)
+        print(f"Saved original image: {original_image_path}")
 
     print(f"Started processing image: {image_name}, dimensions: {image.shape}")
 
@@ -152,17 +156,22 @@ def process_image(image, output_folder, image_name):
                 if end_y > relative_y and end_x > relative_x:
                     mask[relative_y:end_y, relative_x:end_x] = 255
 
-            mask_unprocessed_path = os.path.join(output_folder, f'{image_name}_mask_unprocessed.jpg')
-            cv2.imwrite(mask_unprocessed_path, mask)
-            print(f"Saved unprocessed mask image: {mask_unprocessed_path}")
+            # Save unprocessed mask image only if debug is enabled
+            if debug == 1:
+                mask_unprocessed_path = os.path.join(output_folder, f'{image_name}_mask_unprocessed.jpg')
+                cv2.imwrite(mask_unprocessed_path, mask)
+                print(f"Saved unprocessed mask image: {mask_unprocessed_path}")
 
             kernel_size = 30
             kernel = np.ones((kernel_size, kernel_size), np.uint8)
             mask = cv2.dilate(mask, kernel, iterations=3)
             mask = cv2.erode(mask, kernel, iterations=3)
-            mask_processed_path = os.path.join(output_folder, f'{image_name}_mask_processed.jpg')
-            cv2.imwrite(mask_processed_path, mask)
-            print(f"Saved morphologically processed mask image: {mask_processed_path}")
+            
+            # Save processed mask image only if debug is enabled
+            if debug == 1:
+                mask_processed_path = os.path.join(output_folder, f'{image_name}_mask_processed.jpg')
+                cv2.imwrite(mask_processed_path, mask)
+                print(f"Saved morphologically processed mask image: {mask_processed_path}")
 
             # Find unfilled areas and check for overlaps
             inv_mask = cv2.bitwise_not(mask)
@@ -359,9 +368,12 @@ def process_image(image, output_folder, image_name):
 
                 if placement_errors > 0:
                     print(f"Encountered {placement_errors} placement errors during composition.")
-                final_combined_path = os.path.join(output_folder, f'{image_name}_final_combined.jpg')
-                cv2.imwrite(final_combined_path, combined_final)
-                print(f"Saved final combined image: {final_combined_path}")
+                
+                # Save final combined image only if debug is enabled
+                if debug == 1:
+                    final_combined_path = os.path.join(output_folder, f'{image_name}_final_combined.jpg')
+                    cv2.imwrite(final_combined_path, combined_final)
+                    print(f"Saved final combined image: {final_combined_path}")
     else:
         print("No final filtered block information, cannot create final_combined image.")
 
