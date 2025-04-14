@@ -91,7 +91,7 @@ The code includes several configurable parameters:
 
 ### Processing Visualization
 
-| (a) Original image | (b) Canny Edges | (c) Filtered Contours | (d) Reconstructed Page |
+| (a) Original Image | (b) Canny Edges | (c) Filtered Contours | (d) Reconstructed Page |
 |---------------------|-----------------|-----------------------|-------------------------|
 | ![Original](newspaper1.jpg_blocks/newspaper1_original.jpg) | ![Canny Edges](newspaper1.jpg_blocks/newspaper1_mask_unprocessed.jpg) | ![Filtered Contours](newspaper1.jpg_blocks/newspaper1_mask_processed.jpg) | ![Reconstructed Page](newspaper1.jpg_blocks/newspaper1_final_combined.jpg) |
 
