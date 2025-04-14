@@ -91,25 +91,24 @@ The code includes several configurable parameters:
 
 ### Processing Visualization
 
-<div style="display: flex; gap: 10px; margin-bottom: 20px;">
-  <div>
+<div style="display: flex; gap: 10px; margin-bottom: 10px; text-align: center;">
+  <div style="flex: 1;">
     <p>(a) Original image</p>
     <img src="newspaper1.jpg_blocks/newspaper1_original.jpg" alt="Original" width="200" />
   </div>
-  <div>
+  <div style="flex: 1;">
     <p>(b) Canny Edges</p>
     <img src="newspaper1.jpg_blocks/newspaper1_mask_unprocessed.jpg" alt="Canny Edges" width="200" />
   </div>
-  <div>
+  <div style="flex: 1;">
     <p>(c) Filtered Contours</p>
     <img src="newspaper1.jpg_blocks/newspaper1_mask_processed.jpg" alt="Filtered Contours" width="200" />
   </div>
-  <div>
+  <div style="flex: 1;">
     <p>(d) Reconstructed Page</p>
     <img src="newspaper1.jpg_blocks/newspaper1_final_combined.jpg" alt="Reconstructed Page" width="200" />
   </div>
 </div>
-
 
 ## Limitations
 
@@ -124,5 +123,8 @@ The code includes several configurable parameters:
 - Content extraction assistance for OCR systems
 - Dataset creation for machine learning models
 - Layout analysis for publishing research
+
+## Detailed Report (Chinese Version)
+[HackMD Link](https://hackmd.io/@OcvSVmsIRyeNNdWk7tMv2w/H1Zw-65Ckl)
 
 ---
