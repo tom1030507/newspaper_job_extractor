@@ -422,6 +422,6 @@ def main(input_path, output_folder_base, dpi=300):
         process_image(image, output_folder_base, image_name)
 
 if __name__ == "__main__":
-    input_path = 'newspaper/newspaper33.jpg'
+    input_path = 'newspaper/newspaper1.jpg'
     output_folder_base = input_path + '_blocks'
     main(input_path, output_folder_base, dpi=200)
