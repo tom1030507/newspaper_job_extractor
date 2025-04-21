@@ -18,15 +18,15 @@ This tool automatically extracts job advertisement blocks from scanned newspaper
 ### Before and After Comparison
 
 #### Original Newspaper Image
-<img src="newspaper1.jpg" alt="Original Newspaper" width="400" /><br>
+<img src="newspaper/newspaper1.jpg" alt="Original Newspaper" width="400" /><br>
 
 *Original scanned newspaper with multiple job advertisements*
 
 #### Extracted Job Blocks
 <div style="display: flex; gap: 10px;">
-  <img src="newspaper1.jpg_blocks/239_954_927_1513.jpg" alt="Extracted Block 1" width="200" />
-  <img src="newspaper1.jpg_blocks/929_971_1615_1527.jpg" alt="Extracted Block 2" width="200" />
-  <img src="newspaper1.jpg_blocks/1618_2084_2284_2360.jpg" alt="Extracted Block 3" width="200" />
+  <img src="newspaper/newspaper1.jpg_blocks/239_954_927_1513.jpg" alt="Extracted Block 1" width="200" />
+  <img src="newspaper/newspaper1.jpg_blocks/929_971_1615_1527.jpg" alt="Extracted Block 2" width="200" />
+  <img src="newspaper/newspaper1.jpg_blocks/1618_2084_2284_2360.jpg" alt="Extracted Block 3" width="200" />
 </div>
 
 *Individual job advertisement blocks automatically extracted from the newspaper*
@@ -93,7 +93,7 @@ The code includes several configurable parameters:
 
 | (a) Original Image | (b) Canny Edges | (c) Filtered Contours | (d) Reconstructed Page |
 |---------------------|-----------------|-----------------------|-------------------------|
-| ![Original](newspaper1.jpg_blocks/newspaper1_original.jpg) | ![Canny Edges](newspaper1.jpg_blocks/newspaper1_mask_unprocessed.jpg) | ![Filtered Contours](newspaper1.jpg_blocks/newspaper1_mask_processed.jpg) | ![Reconstructed Page](newspaper1.jpg_blocks/newspaper1_final_combined.jpg) |
+| ![Original](newspaper/newspaper1.jpg_blocks/newspaper1_original.jpg) | ![Canny Edges](newspaper/newspaper1.jpg_blocks/newspaper1_mask_unprocessed.jpg) | ![Filtered Contours](newspaper/newspaper1.jpg_blocks/newspaper1_mask_processed.jpg) | ![Reconstructed Page](newspaper/newspaper1.jpg_blocks/newspaper1_final_combined.jpg) |
 
 ## Limitations
 
@@ -109,7 +109,7 @@ The code includes several configurable parameters:
 - Dataset creation for machine learning models
 - Layout analysis for publishing research
 
-## Detailed Report (Chinese Version)
-[HackMD Link](https://hackmd.io/@OcvSVmsIRyeNNdWk7tMv2w/H1Zw-65Ckl)
+## Detailed Report
+[HackMD Link](https://hackmd.io/@OcvSVmsIRyeNNdWk7tMv2w/Bkd2CxVkeg)
 
 ---
