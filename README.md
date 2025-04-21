@@ -53,7 +53,7 @@ pip install opencv-python numpy pymupdf
 python main.py
 
 # To adjust input path and output directory, modify these lines in the script:
-input_path = 'newspaper1.jpg'  # Change to your input file path
+input_path = 'newspaper/newspaper1.jpg'  # Change to your input file path
 output_folder_base = input_path + '_blocks'  # Output directory
 ```
 
