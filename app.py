@@ -3,7 +3,7 @@ import os
 import cv2
 import numpy as np
 from werkzeug.utils import secure_filename
-from main import process_image, main
+from image_processor import process_image, main
 import uuid
 import shutil
 import zipfile
