@@ -27,7 +27,7 @@ def intersection_area(boxA, boxB):
     return 0
 
 # Function to process a single image (directly receives image data)
-def process_image(image, output_folder, image_name):
+def process_image(image, output_folder, image_name, debug_mode=0):
     """Process image data, extract blocks and save results"""
     if image is None:
         print(f"Image data is empty, cannot process: {image_name}")
@@ -38,7 +38,7 @@ def process_image(image, output_folder, image_name):
         print(f"Created folder: {output_folder}")
 
     # Save original image to output folder only if debug is enabled
-    if debug == 1:
+    if debug_mode == 1:
         original_image_path = os.path.join(output_folder, f"{image_name}_original.jpg")
         cv2.imwrite(original_image_path, image)
         print(f"Saved original image: {original_image_path}")
@@ -157,7 +157,7 @@ def process_image(image, output_folder, image_name):
                     mask[relative_y:end_y, relative_x:end_x] = 255
 
             # Save unprocessed mask image only if debug is enabled
-            if debug == 1:
+            if debug_mode == 1:
                 mask_unprocessed_path = os.path.join(output_folder, f'{image_name}_mask_unprocessed.jpg')
                 cv2.imwrite(mask_unprocessed_path, mask)
                 print(f"Saved unprocessed mask image: {mask_unprocessed_path}")
@@ -168,10 +168,10 @@ def process_image(image, output_folder, image_name):
             mask = cv2.erode(mask, kernel, iterations=3)
             
             # Save processed mask image only if debug is enabled
-            if debug == 1:
+            if debug_mode == 1:
                 mask_processed_path = os.path.join(output_folder, f'{image_name}_mask_processed.jpg')
                 cv2.imwrite(mask_processed_path, mask)
-                print(f"Saved morphologically processed mask image: {mask_processed_path}")
+                print(f"Saved processed mask image: {mask_processed_path}")
 
             # Find unfilled areas and check for overlaps
             inv_mask = cv2.bitwise_not(mask)
@@ -370,7 +370,7 @@ def process_image(image, output_folder, image_name):
                     print(f"Encountered {placement_errors} placement errors during composition.")
                 
                 # Save final combined image only if debug is enabled
-                if debug == 1:
+                if debug_mode == 1:
                     final_combined_path = os.path.join(output_folder, f'{image_name}_final_combined.jpg')
                     cv2.imwrite(final_combined_path, combined_final)
                     print(f"Saved final combined image: {final_combined_path}")
@@ -380,7 +380,7 @@ def process_image(image, output_folder, image_name):
     print("\nAll processing steps completed!")
 
 # Main function to process PDF or image input
-def main(input_path, output_folder_base, dpi=300):
+def main(input_path, output_folder_base, dpi=300, debug_mode=0):
     if input_path.lower().endswith('.pdf'):
         pdf_document = fitz.open(input_path)
         pdf_base_name = os.path.splitext(os.path.basename(input_path))[0]
@@ -409,7 +409,7 @@ def main(input_path, output_folder_base, dpi=300):
             image_name = f"{pdf_base_name}_page{page_num + 1}"
             page_output_folder = f"{output_folder_base}_page{page_num + 1}"
             print(f"\nProcessing PDF page {page_num + 1}, dimensions: {image.shape}")
-            process_image(image, page_output_folder, image_name)
+            process_image(image, page_output_folder, image_name, debug_mode)
 
         pdf_document.close()
     else:
@@ -419,7 +419,7 @@ def main(input_path, output_folder_base, dpi=300):
             return
         image_name = os.path.splitext(os.path.basename(input_path))[0]
         print(f"Successfully read image: {input_path}, dimensions: {image.shape}")
-        process_image(image, output_folder_base, image_name)
+        process_image(image, output_folder_base, image_name, debug_mode)
 
 if __name__ == "__main__":
     input_path = 'newspaper/newspaper1.jpg'

@@ -1,0 +1,65 @@
+# Python相關
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 專案特有目錄
+uploads/
+results/
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# 虛擬環境
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE 設定檔
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+
+# 系統文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 日誌和暫存檔
+*.log
+logs/
+log/
+tmp/
+temp/ 

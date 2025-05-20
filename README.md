@@ -109,6 +109,37 @@ The code includes several configurable parameters:
 - Dataset creation for machine learning models
 - Layout analysis for publishing research
 
+## Web Interface
+
+This tool now provides a Flask web interface that allows you to upload and process files through your browser.
+
+### Installing Web Interface Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Running the Web Server
+
+```bash
+python app.py
+```
+
+After startup, open your browser and navigate to http://127.0.0.1:5000 to use the web interface.
+
+### Web Interface Features
+
+1. **File Upload** - Supports JPG, PNG, and PDF files
+2. **Debug Mode** - Option to save intermediate images from the processing steps to help understand the segmentation process
+3. **View Results** - View extracted blocks in a grid layout
+4. **Download Results** - Download all extracted blocks as a ZIP file
+
+### Notes
+
+- Upload file size is limited to 16MB
+- Processing large files may take some time, please be patient
+- To avoid excessive disk space usage, the system automatically cleans up processing results older than 24 hours
+
 ## Detailed Report
 [HackMD Link](https://hackmd.io/@OcvSVmsIRyeNNdWk7tMv2w/Bkd2CxVkeg)
 
