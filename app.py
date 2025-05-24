@@ -77,29 +77,22 @@ def check_and_get_rotation_direction(image):
         response = MODEL.generate_content([prompt, pil_image])
         orientation_result = response.text.strip()
         
-        print(f"檢測到圖片方向: {orientation_result}")
         return orientation_result
         
     except Exception as e:
-        print(f"檢查圖片方向時出錯: {str(e)}，保持原始方向")
         return "無需旋轉"
 
 def apply_rotation_to_image(image, rotation_direction):
     """根據旋轉方向旋轉圖片"""
     if rotation_direction == "順時針90度":
-        print("正在順時針旋轉90度...")
         return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
     elif rotation_direction == "180度":
-        print("正在旋轉180度...")
         return cv2.rotate(image, cv2.ROTATE_180)
     elif rotation_direction == "逆時針90度":
-        print("正在逆時針旋轉90度...")
         return cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
     elif rotation_direction == "正確":
-        print("圖片方向正確，無需旋轉")
         return image
     else:
-        print(f"無法識別方向指示: {rotation_direction}，保持原始方向")
         return image
 
 def check_and_correct_image_orientation(image):
@@ -207,7 +200,11 @@ def get_image_description(process_id, image_name):
         img = Image.open(BytesIO(image_data))
         
         # 調用Gemini API
-        prompt = """請分析這張圖片中的所有就業資訊，可能包含多個工作崗位。請以JSON格式回答，包含一個工作列表，每個工作包含以下欄位：
+        prompt = """請先仔細判斷這張圖片是否包含工作招聘、求職、就業相關的資訊。
+
+        如果這張圖片不是工作相關的內容（例如：純粹的新聞報導、廣告、商品資訊、活動公告等），請回答空陣列 []。
+
+        如果這張圖片確實包含工作招聘或就業相關資訊，請分析其中的所有工作崗位，並以JSON格式回答，包含一個工作列表，每個工作包含以下欄位：
         - 工作：工作職位或職業名稱
         - 行業：根據工作內容判斷屬於以下哪個行業分類，必須從下列選項中選擇一個：
           "農、林、漁、牧業"、"礦業及土石採取業"、"製造業"、"電力及燃氣供應業"、"用水供應及污染整治業"、"營建工程業"、"批發及零售業"、"運輸及倉儲業"、"住宿及餐飲業"、"出版影音及資通訊業"、"金融及保險業"、"不動產業"、"專業、科學及技術服務業"、"支援服務業"、"公共行政及國防；強制性社會安全"、"教育業"、"醫療保健及社會工作服務業"、"藝術、娛樂及休閒服務業"、"其他服務業"
@@ -219,8 +216,8 @@ def get_image_description(process_id, image_name):
 
         請用繁體中文回答，如果某個欄位沒有資訊請填入空字串。行業欄位必須從上述19個分類中選擇最合適的一個。
         請直接回答JSON格式的工作列表，不要包含其他說明文字。
-        
-        範例格式：
+
+        工作相關內容的範例格式：
         [
             {
                 "工作": "服務員",
@@ -230,19 +227,15 @@ def get_image_description(process_id, image_name):
                 "地點": "台北市信義區",
                 "聯絡方式": "02-1234-5678",
                 "其他": "需輪班"
-            },
-            {
-                "工作": "廚師",
-                "行業": "住宿及餐飲業",
-                "時間": "早班 6:00-14:00",
-                "薪資": "月薪35000元",
-                "地點": "台北市大安區",
-                "聯絡方式": "02-8765-4321",
-                "其他": "具餐飲經驗佳"
             }
         ]
-        
-        如果只有一個工作，也請用陣列格式回答。如果圖片中沒有工作資訊，請回答空陣列 []。"""
+
+        非工作相關內容請回答：[]
+
+        重要提醒：
+        - 只有明確的工作招聘、求職、徵人啟事才算工作相關
+        - 純粹的商業廣告、新聞報導、產品介紹不算工作相關
+        - 如果圖片內容模糊不清或無法確定，請回答 []"""
         
         response = MODEL.generate_content([prompt, img])
         
@@ -446,8 +439,26 @@ def upload_file():
 
 def is_valid_job(job):
     """檢查是否為有效的工作資訊"""
-    invalid_jobs = ['未識別到工作資訊', '未設置Gemini API密鑰', '圖片不存在', '獲取描述時出錯']
-    return job.get('工作') and job.get('工作') not in invalid_jobs
+    invalid_jobs = ['未識別到工作資訊', '未設置Gemini API密鑰', '圖片不存在', '獲取描述時出錯', '不詳']
+    
+    # 首先檢查工作名稱是否有效
+    if not job.get('工作') or job.get('工作') in invalid_jobs:
+        return False
+    
+    # 檢查主要欄位中有多少個是"無資訊"
+    main_fields = ['工作', '行業', '時間', '薪資', '地點', '聯絡方式']
+    no_info_count = 0
+    
+    for field in main_fields:
+        field_value = job.get(field, '')
+        if field_value == '無資訊' or field_value == '':
+            no_info_count += 1
+    
+    # 如果有4個或更多欄位是"無資訊"，則認為是無效工作
+    if no_info_count >= 4:
+        return False
+    
+    return True
 
 @app.route('/results/<process_id>')
 def results(process_id):
@@ -550,8 +561,14 @@ def results(process_id):
     else:
         return "處理結果不存在", 404
     
-    # 對頁碼進行排序
-    image_files.sort(key=lambda x: int(x['page']))
+    # 對圖片按工作數量從小到大排序
+    def count_valid_jobs(image):
+        """計算圖片中有效工作的數量"""
+        if not image.get('description'):
+            return 0
+        return len([job for job in image['description'] if is_valid_job(job)])
+    
+    image_files.sort(key=count_valid_jobs)
     debug_files.sort(key=lambda x: int(x['page']))
     
     return render_template('results.html', 
