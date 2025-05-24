@@ -37,17 +37,93 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
+def check_and_get_rotation_direction(image):
+    """使用Gemini API檢查圖片方向，返回需要旋轉的方向信息"""
+    
+    # 從session中獲取API密鑰
+    api_key = session.get('gemini_api_key', '')
+    
+    if not api_key:
+        print("未設置Gemini API密鑰，跳過方向檢查")
+        return "無需旋轉"
+    
+    try:
+        # 配置API密鑰，並設定temperature、top_k、top_p讓生成結果固定
+        genai.configure(api_key=api_key)
+        MODEL = genai.GenerativeModel(
+            'gemini-2.0-flash-001',
+            generation_config={
+                "temperature": 0.0,
+                "top_k": 1,
+                "top_p": 0.0
+            }
+        )
+        
+        # 將OpenCV圖片轉換為PIL格式
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        pil_image = Image.fromarray(image_rgb)
+        
+        # 調用Gemini API檢查方向
+        prompt = """你現在是一個專門判斷圖片方向的AI助手。請根據這張圖片中文字的閱讀方向，判斷圖片是否需要旋轉，讓文字成為正常可讀的狀態。
+
+請只回覆以下其中一個選項（只回覆選項本身，不要加任何說明）：
+- 正確
+- 逆時針90度
+- 順時針90度
+- 180度
+
+如果圖片已經是正常閱讀方向，請回覆「正確」；如果需要旋轉，請回覆對應的選項。"""
+        
+        response = MODEL.generate_content([prompt, pil_image])
+        orientation_result = response.text.strip()
+        
+        print(f"檢測到圖片方向: {orientation_result}")
+        return orientation_result
+        
+    except Exception as e:
+        print(f"檢查圖片方向時出錯: {str(e)}，保持原始方向")
+        return "無需旋轉"
+
+def apply_rotation_to_image(image, rotation_direction):
+    """根據旋轉方向旋轉圖片"""
+    if rotation_direction == "順時針90度":
+        print("正在順時針旋轉90度...")
+        return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+    elif rotation_direction == "180度":
+        print("正在旋轉180度...")
+        return cv2.rotate(image, cv2.ROTATE_180)
+    elif rotation_direction == "逆時針90度":
+        print("正在逆時針旋轉90度...")
+        return cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    elif rotation_direction == "正確":
+        print("圖片方向正確，無需旋轉")
+        return image
+    else:
+        print(f"無法識別方向指示: {rotation_direction}，保持原始方向")
+        return image
+
+def check_and_correct_image_orientation(image):
+    """使用Gemini API檢查圖片方向並自動糾正（保留舊函數以向後兼容）"""
+    rotation_direction = check_and_get_rotation_direction(image)
+    return apply_rotation_to_image(image, rotation_direction)
+
 def process_image_data(image, process_id, image_name, debug_mode=0):
     """處理圖像並儲存結果"""
     from image_processor import process_image as original_process_image
     import tempfile
     import shutil
     
+    # 首先檢查圖片需要旋轉的方向，但不立即旋轉
+    print(f"開始檢查圖片方向: {image_name}")
+    rotation_direction = check_and_get_rotation_direction(image)
+    print(f"檢測到需要旋轉方向: {rotation_direction}")
+    
     # 創建臨時目錄進行處理
     temp_dir = tempfile.mkdtemp()
     
     try:
-        # 使用原始處理函數處理到臨時目錄
+        # 使用原始圖片進行處理（不旋轉）
+        print("使用原始圖片進行區塊分割處理...")
         original_process_image(image, temp_dir, image_name, debug_mode)
         
         # 將處理結果儲存
@@ -55,23 +131,37 @@ def process_image_data(image, process_id, image_name, debug_mode=0):
             image_storage[process_id] = {}
         
         # 遍歷臨時目錄中的所有圖片檔案
+        processed_files = []
         for filename in os.listdir(temp_dir):
             if filename.endswith(('.jpg', '.jpeg', '.png')):
                 file_path = os.path.join(temp_dir, filename)
                 
-                # 讀取圖片並編碼
-                with open(file_path, 'rb') as f:
-                    image_data = f.read()
+                # 讀取圖片
+                processed_image = cv2.imread(file_path)
+                if processed_image is not None:
+                    # 對處理後的圖片應用旋轉
+                    rotated_image = apply_rotation_to_image(processed_image, rotation_direction)
+                    
+                    # 將旋轉後的圖片編碼為二進制資料
+                    _, buffer = cv2.imencode('.jpg', rotated_image)
+                    image_data = buffer.tobytes()
                     base64_data = base64.b64encode(image_data).decode('utf-8')
                     
                     # 儲存圖片資料
                     image_storage[process_id][filename] = {
                         'base64': base64_data,
                         'binary': image_data,
-                        'format': filename.split('.')[-1].lower()
+                        'format': 'jpg'
                     }
+                    processed_files.append(filename)
+                else:
+                    print(f"無法讀取處理後的圖片: {filename}")
         
-        return list(image_storage[process_id].keys())
+        print(f"處理完成，共處理了 {len(processed_files)} 張圖片")
+        if rotation_direction != "正確" and rotation_direction != "無需旋轉":
+            print(f"所有圖片已根據檢測結果進行旋轉: {rotation_direction}")
+        
+        return processed_files
         
     finally:
         # 清理臨時目錄
@@ -486,7 +576,7 @@ def view_image(process_id, filename):
             response.headers['Content-Type'] = f'image/{format_type}'
             return response
     
-    return "圖像不存在", 404
+        return "圖像不存在", 404
 
 @app.route('/download/<process_id>')
 def download_results(process_id):
