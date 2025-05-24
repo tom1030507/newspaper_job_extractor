@@ -99,6 +99,10 @@
                 <!-- 提取區塊標籤 -->
                 <div class="tab-pane fade show active" id="blocks" role="tabpanel" aria-labelledby="blocks-tab">
                     {% if image_files %}
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle"></i>
+                            圖像下方的描述由 Google {{ model_name }} 模型提供
+                        </div>
                         {% set current_page = "" %}
                         {% for image in image_files %}
                             {% if is_pdf and image.page != current_page %}
@@ -116,6 +120,12 @@
                                 <div class="block-image">
                                     <img src="/results/{{ image.path }}" alt="區塊圖像" onerror="this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAMAAAC8EZcfAAAANlBMVEX////v7+/6+vrz8/P29vbp6en4+Pjs7OzT09PLy8vExMTi4uLb29vPz8/X19fIyMi/v7+5ubnGbvTSAAADDklEQVR4nO2b2ZarIBBFBQQZ9f+/tvpgTKcDKiDYfda9ee90B2yvkqqCQqTRaDQajUaj0Wg0Go3m03HGsBWjFnI+YeOuNeNMcL7ZWRREfLscA4awKwZn7EJcAxBjMZMNwZm7zIPYImNMRHGH2Qk5Td4SthDnVG8nzGB8lNfEEBSNVghtfMGJ0Z20Q0jdkyiDAzLGKOPkHd1ZbiEOZJyObtVWxACK8QCQDTkKEZPfCQbEaXc28l9wosmPkIGOsqUR4uh7qiO8AUzGaX5hRHdw03go8i9hMJrwFFPAvIUwYTCCCQcEwkscBcSZNyBIeDKAShIGMzMjApE3YZoR4azozIghPMNJkJCDEQqVMCfEKbwCEQlzkgHnxDCmJz1FKmGO91AWKRHCnCGB0waFMMcSOvVGhDBnwKDUB5EwR+L6UCPMmeH7UCXMkdTpM2GOnItGI9wgSWmGhDlDfgU3EeY0Gc3QSJjj4q83NxPmnLPJeY9KmOsElzaCeghzbPRFkx5CzETQRZhC4tu+PYSp1xPbGOohTL0u3jgQ9hDmjJFvJsz9yrYQ5rGG7/7HE+ZNhHmseazheMI81jCBMI81HE+YxxomEOaxhuMJ81hD+d8cG7YT5rGGIwnzWMMkwjzWMIEwjzUcSZjHGiYR5rGGCYRFrOEwwjzWMIkwjzVMICxiDYcR5rGGSYR5rGESYedYwyTC1l3D/wlVi94r4DOE/RGLL/30RfjZf/rxJ9t+XH92/tmPrf3Y+rNj6xPY/eR7CrufPM/h9J9c0Hj+yRNFz5+cCDfBT+sJSsOPbg1Kww+uTYrxFmu4CWKs4SaoscabkOINNzHEazcxxV2b2GrvJgbbuwkaj7aJIsZyE1nc5SbG2MtNrPGXmzJC8bhSRCgqRQUhUjUeFYyjqpIo8WARVTUeFcyiqoYrrSrJqiqperqSqqerqqTq6aqqqOobRWEM24Qb3UUAAAAASUVORK5CYII=';">
                                     <div class="filename">{{ image.path }}</div>
+                                    {% if image.description %}
+                                    <div class="description mt-2 p-2" style="background-color: #f8f9fa; border-radius: 4px;">
+                                        <strong>AI說明：</strong>
+                                        <p>{{ image.description }}</p>
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </div>
                             

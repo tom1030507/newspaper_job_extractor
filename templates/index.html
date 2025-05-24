@@ -58,6 +58,34 @@
         <div class="upload-form">
             <h1 class="text-center">報紙工作廣告區塊提取工具</h1>
             
+            <!-- 顯示消息 -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
+            
+            <!-- Gemini API密鑰設置 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">設置Gemini API密鑰</h5>
+                    <p class="card-text">需要Google Gemini API密鑰來獲取圖像的文字說明。您可以在 <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> 獲取API密鑰。</p>
+                    <p class="card-text"><span class="badge bg-primary">使用模型: {{ model_name }}</span></p>
+                    <form action="/set_api_key" method="post">
+                        <div class="input-group mb-3">
+                            <input type="password" class="form-control" name="api_key" placeholder="輸入您的Gemini API密鑰" value="{{ api_key }}" required>
+                            <button class="btn btn-outline-primary" type="submit">儲存</button>
+                        </div>
+                        <div class="form-text">API密鑰只會存儲在您的瀏覽器會話中，不會被保存到伺服器。</div>
+                    </form>
+                </div>
+            </div>
+            
             <div class="features">
                 <h4>功能介紹</h4>
                 <ul>
@@ -66,6 +94,7 @@
                     <li>應用智能過濾識別相關區塊</li>
                     <li>處理嵌套內容區塊以避免重複</li>
                     <li>檢測未填充區域以捕獲可能被主要檢測遺漏的內容</li>
+                    <li>使用Gemini AI獲取圖像的文字說明</li>
                 </ul>
             </div>
             
