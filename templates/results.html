@@ -66,6 +66,28 @@
             border-radius: 4px;
             border-left: 4px solid #007bff;
         }
+        .jobs-table th {
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .jobs-table td {
+            font-size: 13px;
+            vertical-align: middle;
+        }
+        .jobs-table .job-cell {
+            min-width: 100px;
+            font-weight: 500;
+        }
+        .jobs-table .contact-cell {
+            min-width: 120px;
+            word-break: break-all;
+        }
+        .jobs-table .other-cell {
+            max-width: 200px;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -79,13 +101,16 @@
                         <a href="/download/{{ process_id }}" class="btn btn-primary">下載全部結果</a>
                     </div>
                 </div>
-                <p class="mt-3 text-muted">找到 {{ image_files|length }} 個區塊</p>
+                <p class="mt-3 text-muted">找到 {{ all_jobs|length }} 個工作崗位</p>
             </div>
             
             <!-- 標籤導航 -->
             <ul class="nav nav-tabs" id="resultTab" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="blocks-tab" data-bs-toggle="tab" data-bs-target="#blocks" type="button" role="tab" aria-controls="blocks" aria-selected="true">提取區塊</button>
+                    <button class="nav-link active" id="jobs-tab" data-bs-toggle="tab" data-bs-target="#jobs" type="button" role="tab" aria-controls="jobs" aria-selected="true">工作資訊總覽</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="images-tab" data-bs-toggle="tab" data-bs-target="#images" type="button" role="tab" aria-controls="images" aria-selected="false">圖片描述</button>
                 </li>
                 {% if has_debug_files %}
                 <li class="nav-item" role="presentation">
@@ -96,12 +121,52 @@
             
             <!-- 標籤內容 -->
             <div class="tab-content" id="resultTabContent">
-                <!-- 提取區塊標籤 -->
-                <div class="tab-pane fade show active" id="blocks" role="tabpanel" aria-labelledby="blocks-tab">
+                <!-- 工作資訊總覽標籤 -->
+                <div class="tab-pane fade show active" id="jobs" role="tabpanel" aria-labelledby="jobs-tab">
+                    {% if all_jobs %}
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle"></i>
+                            以下表格整合了所有識別出的工作資訊，由 Google {{ model_name }} 模型分析提供
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover jobs-table">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th class="job-cell">工作</th>
+                                        <th class="job-cell">時間</th>
+                                        <th class="job-cell">薪資</th>
+                                        <th class="job-cell">地點</th>
+                                        <th class="contact-cell">聯絡方式</th>
+                                        <th class="other-cell">其他</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for job in all_jobs %}
+                                    <tr>
+                                        <td class="job-cell">{{ job.工作 if job.工作 else '無資訊' }}</td>
+                                        <td class="job-cell">{{ job.時間 if job.時間 else '無資訊' }}</td>
+                                        <td class="job-cell">{{ job.薪資 if job.薪資 else '無資訊' }}</td>
+                                        <td class="job-cell">{{ job.地點 if job.地點 else '無資訊' }}</td>
+                                        <td class="contact-cell">{{ job.聯絡方式 if job.聯絡方式 else '無資訊' }}</td>
+                                        <td class="other-cell">{{ job.其他 if job.其他 else '' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                    <div class="alert alert-info mt-3">
+                        未找到任何工作資訊。可能是圖像處理過程中沒有識別出工作相關內容。
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- 圖片描述標籤 -->
+                <div class="tab-pane fade" id="images" role="tabpanel" aria-labelledby="images-tab">
                     {% if image_files %}
                         <div class="alert alert-info mb-3">
                             <i class="bi bi-info-circle"></i>
-                            圖像下方的描述由 Google {{ model_name }} 模型提供
+                            以下是每張圖片的詳細分析結果
                         </div>
                         {% set current_page = "" %}
                         {% for image in image_files %}
@@ -122,8 +187,49 @@
                                     <div class="filename">{{ image.filename }}</div>
                                     {% if image.description %}
                                     <div class="description mt-2 p-2" style="background-color: #f8f9fa; border-radius: 4px;">
-                                        <strong>AI說明：</strong>
-                                        <p>{{ image.description }}</p>
+                                        <strong>AI分析結果：</strong>
+                                        {% for job in image.description %}
+                                            {% if image.description|length > 1 %}
+                                                <div class="mt-3 mb-2">
+                                                    <h6 class="mb-2 text-primary">工作 {{ loop.index }}</h6>
+                                                </div>
+                                            {% endif %}
+                                            <div class="table-responsive mt-2">
+                                                <table class="table table-sm table-bordered">
+                                                    <tbody>
+                                                        <tr>
+                                                            <td class="fw-bold bg-light" style="width: 25%;">工作</td>
+                                                            <td>{{ job.工作 if job.工作 else '無資訊' }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="fw-bold bg-light">時間</td>
+                                                            <td>{{ job.時間 if job.時間 else '無資訊' }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="fw-bold bg-light">薪資</td>
+                                                            <td>{{ job.薪資 if job.薪資 else '無資訊' }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="fw-bold bg-light">地點</td>
+                                                            <td>{{ job.地點 if job.地點 else '無資訊' }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="fw-bold bg-light">聯絡方式</td>
+                                                            <td>{{ job.聯絡方式 if job.聯絡方式 else '無資訊' }}</td>
+                                                        </tr>
+                                                        {% if job.其他 %}
+                                                        <tr>
+                                                            <td class="fw-bold bg-light">其他</td>
+                                                            <td>{{ job.其他 }}</td>
+                                                        </tr>
+                                                        {% endif %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {% if not loop.last and image.description|length > 1 %}
+                                                <hr class="my-3">
+                                            {% endif %}
+                                        {% endfor %}
                                     </div>
                                     {% endif %}
                                 </div>

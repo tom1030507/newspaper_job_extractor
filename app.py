@@ -85,11 +85,25 @@ def get_image_description(process_id, image_name):
     
     # 如果沒有設置API密鑰，返回默認訊息
     if not api_key:
-        return "未設置Gemini API密鑰，請在首頁設置"
+        return [{
+            "工作": "未設置Gemini API密鑰",
+            "時間": "",
+            "薪資": "",
+            "地點": "",
+            "聯絡方式": "",
+            "其他": "請在首頁設置API密鑰"
+        }]
     
     # 檢查圖片是否存在
     if process_id not in image_storage or image_name not in image_storage[process_id]:
-        return "圖片不存在"
+        return [{
+            "工作": "圖片不存在",
+            "時間": "",
+            "薪資": "",
+            "地點": "",
+            "聯絡方式": "",
+            "其他": ""
+        }]
     
     try:
         # 配置API密鑰
@@ -101,17 +115,104 @@ def get_image_description(process_id, image_name):
         img = Image.open(BytesIO(image_data))
         
         # 調用Gemini API
-        prompt = "請描述這張圖片中的內容，特別是裡面可能包含的就業資訊或新聞內容。請使用繁體中文回答，並保持簡潔（不超過100字）。"
+        prompt = """請分析這張圖片中的所有就業資訊，可能包含多個工作崗位。請以JSON格式回答，包含一個工作列表，每個工作包含以下欄位：
+        - 工作：工作職位或職業名稱
+        - 時間：工作時間或營業時間
+        - 薪資：薪資待遇或收入
+        - 地點：工作地點或地址
+        - 聯絡方式：電話、地址或其他聯絡資訊
+        - 其他：其他相關資訊或備註
+
+        請用繁體中文回答，如果某個欄位沒有資訊請填入空字串。
+        請直接回答JSON格式的工作列表，不要包含其他說明文字。
+        
+        範例格式：
+        [
+            {
+                "工作": "服務員",
+                "時間": "9:00-18:00",
+                "薪資": "時薪160元起",
+                "地點": "台北市信義區",
+                "聯絡方式": "02-1234-5678",
+                "其他": "需輪班"
+            },
+            {
+                "工作": "廚師",
+                "時間": "早班 6:00-14:00",
+                "薪資": "月薪35000元",
+                "地點": "台北市大安區",
+                "聯絡方式": "02-8765-4321",
+                "其他": "具餐飲經驗佳"
+            }
+        ]
+        
+        如果只有一個工作，也請用陣列格式回答。如果圖片中沒有工作資訊，請回答空陣列 []。"""
+        
         response = MODEL.generate_content([prompt, img])
         
         # 獲取響應文字
-        description = response.text
+        description_text = response.text.strip()
         
-        return description
+        # 嘗試解析JSON
+        try:
+            # 移除可能的markdown格式標記
+            if description_text.startswith('```json'):
+                description_text = description_text.replace('```json', '').replace('```', '').strip()
+            elif description_text.startswith('```'):
+                description_text = description_text.replace('```', '').strip()
+            
+            description_json = json.loads(description_text)
+            
+            # 確保返回的是列表
+            if not isinstance(description_json, list):
+                # 如果返回的是單一物件，轉換為列表
+                if isinstance(description_json, dict):
+                    description_json = [description_json]
+                else:
+                    description_json = []
+            
+            # 確保每個工作物件都有所有必要欄位
+            required_fields = ["工作", "時間", "薪資", "地點", "聯絡方式", "其他"]
+            for job in description_json:
+                if isinstance(job, dict):
+                    for field in required_fields:
+                        if field not in job:
+                            job[field] = ""
+            
+            # 如果沒有工作，返回一個空的提示
+            if not description_json:
+                return [{
+                    "工作": "未識別到工作資訊",
+                    "時間": "",
+                    "薪資": "",
+                    "地點": "",
+                    "聯絡方式": "",
+                    "其他": "此圖片可能不包含就業相關資訊"
+                }]
+            
+            return description_json
+            
+        except json.JSONDecodeError:
+            # 如果JSON解析失敗，嘗試從文字中提取資訊
+            return [{
+                "工作": "",
+                "時間": "",
+                "薪資": "",
+                "地點": "",
+                "聯絡方式": "",
+                "其他": description_text
+            }]
     
     except Exception as e:
         print(f"獲取圖片描述時出錯: {str(e)}")
-        return f"獲取圖片描述時出錯: {str(e)}"
+        return [{
+            "工作": "獲取描述時出錯",
+            "時間": "",
+            "薪資": "",
+            "地點": "",
+            "聯絡方式": "",
+            "其他": str(e)
+        }]
 
 def get_image_description_legacy(image_path, process_id, image_name):
     """使用Gemini API獲取圖片的文字說明（兼容舊版本）"""
@@ -244,11 +345,17 @@ def upload_file():
     flash('不支援的檔案格式', 'danger')
     return redirect(url_for('index'))
 
+def is_valid_job(job):
+    """檢查是否為有效的工作資訊"""
+    invalid_jobs = ['未識別到工作資訊', '未設置Gemini API密鑰', '圖片不存在', '獲取描述時出錯']
+    return job.get('工作') and job.get('工作') not in invalid_jobs
+
 @app.route('/results/<process_id>')
 def results(process_id):
     # 檢查是否有此處理ID的資料
     image_files = []
     debug_files = []
+    all_jobs = []  # 統一的工作列表
     is_pdf = False
     
     # 檢查是否為PDF（尋找帶有 _page 的處理ID）
@@ -275,13 +382,32 @@ def results(process_id):
                     # 獲取圖片描述
                     description = get_image_description(page_key, filename)
                     
-                    image_files.append({
-                        'filename': filename,
-                        'page': page_num,
-                        'base64': image_data['base64'],
-                        'format': image_data['format'],
-                        'description': description
-                    })
+                    # 檢查是否有有效的工作資訊
+                    has_valid_jobs = any(is_valid_job(job) for job in description)
+                    
+                    if has_valid_jobs:
+                        image_files.append({
+                            'filename': filename,
+                            'page': page_num,
+                            'base64': image_data['base64'],
+                            'format': image_data['format'],
+                            'description': description
+                        })
+                        
+                        # 將工作資訊加入統一列表
+                        for i, job in enumerate(description):
+                            # 只加入有效的工作資訊
+                            if is_valid_job(job):
+                                job_info = job.copy()
+                                job_info['來源圖片'] = f"第{page_num}頁 - {filename}"
+                                job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
+                                if len([j for j in description if is_valid_job(j)]) > 1:
+                                    valid_jobs = [j for j in description if is_valid_job(j)]
+                                    job_index = valid_jobs.index(job) + 1
+                                    job_info['工作編號'] = f"工作 {job_index}"
+                                else:
+                                    job_info['工作編號'] = ""
+                                all_jobs.append(job_info)
     elif process_id in image_storage:
         # 單一圖像處理
         for filename, image_data in image_storage[process_id].items():
@@ -296,13 +422,32 @@ def results(process_id):
                 # 獲取圖片描述
                 description = get_image_description(process_id, filename)
                 
-                image_files.append({
-                    'filename': filename,
-                    'page': '1',
-                    'base64': image_data['base64'],
-                    'format': image_data['format'],
-                    'description': description
-                })
+                # 檢查是否有有效的工作資訊
+                has_valid_jobs = any(is_valid_job(job) for job in description)
+                
+                if has_valid_jobs:
+                    image_files.append({
+                        'filename': filename,
+                        'page': '1',
+                        'base64': image_data['base64'],
+                        'format': image_data['format'],
+                        'description': description
+                    })
+                    
+                    # 將工作資訊加入統一列表
+                    for i, job in enumerate(description):
+                        # 只加入有效的工作資訊
+                        if is_valid_job(job):
+                            job_info = job.copy()
+                            job_info['來源圖片'] = filename
+                            job_info['圖片編號'] = filename.split('.')[0]
+                            if len([j for j in description if is_valid_job(j)]) > 1:
+                                valid_jobs = [j for j in description if is_valid_job(j)]
+                                job_index = valid_jobs.index(job) + 1
+                                job_info['工作編號'] = f"工作 {job_index}"
+                            else:
+                                job_info['工作編號'] = ""
+                            all_jobs.append(job_info)
     else:
         return "處理結果不存在", 404
     
@@ -314,6 +459,7 @@ def results(process_id):
                           process_id=process_id, 
                           image_files=image_files,
                           debug_files=debug_files,
+                          all_jobs=all_jobs,
                           has_debug_files=len(debug_files) > 0,
                           is_pdf=is_pdf,
                           model_name="gemini-2.0-flash-lite")
@@ -370,7 +516,26 @@ def download_results(process_id):
                     if not any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
                         description = get_image_description(page_key, filename)
                         desc_text_name = f"page_{page_num}/{os.path.splitext(filename)[0]}_description.txt"
-                        zf.writestr(desc_text_name, description)
+                        
+                        # 將工作列表轉換為可讀的表格格式
+                        if isinstance(description, list) and description:
+                            desc_text = "工作資訊分析結果\n" + "="*50 + "\n\n"
+                            for i, job in enumerate(description, 1):
+                                if len(description) > 1:
+                                    desc_text += f"工作 {i}\n" + "-"*20 + "\n"
+                                desc_text += f"工作：{job.get('工作', '無資訊')}\n"
+                                desc_text += f"時間：{job.get('時間', '無資訊')}\n"
+                                desc_text += f"薪資：{job.get('薪資', '無資訊')}\n"
+                                desc_text += f"地點：{job.get('地點', '無資訊')}\n"
+                                desc_text += f"聯絡方式：{job.get('聯絡方式', '無資訊')}\n"
+                                if job.get('其他'):
+                                    desc_text += f"其他：{job.get('其他')}\n"
+                                if i < len(description):
+                                    desc_text += "\n" + "="*30 + "\n\n"
+                        else:
+                            desc_text = str(description)
+                        
+                        zf.writestr(desc_text_name, desc_text)
         else:
             # 單一圖像情況
             for filename, image_data in image_storage[process_id].items():
@@ -381,7 +546,26 @@ def download_results(process_id):
                 if not any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
                     description = get_image_description(process_id, filename)
                     desc_text_name = f"{os.path.splitext(filename)[0]}_description.txt"
-                    zf.writestr(desc_text_name, description)
+                    
+                    # 將工作列表轉換為可讀的表格格式
+                    if isinstance(description, list) and description:
+                        desc_text = "工作資訊分析結果\n" + "="*50 + "\n\n"
+                        for i, job in enumerate(description, 1):
+                            if len(description) > 1:
+                                desc_text += f"工作 {i}\n" + "-"*20 + "\n"
+                            desc_text += f"工作：{job.get('工作', '無資訊')}\n"
+                            desc_text += f"時間：{job.get('時間', '無資訊')}\n"
+                            desc_text += f"薪資：{job.get('薪資', '無資訊')}\n"
+                            desc_text += f"地點：{job.get('地點', '無資訊')}\n"
+                            desc_text += f"聯絡方式：{job.get('聯絡方式', '無資訊')}\n"
+                            if job.get('其他'):
+                                desc_text += f"其他：{job.get('其他')}\n"
+                            if i < len(description):
+                                desc_text += "\n" + "="*30 + "\n\n"
+                    else:
+                        desc_text = str(description)
+                    
+                    zf.writestr(desc_text_name, desc_text)
     
     # 將指針移到檔案開頭
     memory_file.seek(0)
