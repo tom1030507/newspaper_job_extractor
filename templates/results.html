@@ -133,6 +133,7 @@
                                 <thead class="table-dark">
                                     <tr>
                                         <th class="job-cell">工作</th>
+                                        <th class="job-cell">行業</th>
                                         <th class="job-cell">時間</th>
                                         <th class="job-cell">薪資</th>
                                         <th class="job-cell">地點</th>
@@ -144,6 +145,7 @@
                                     {% for job in all_jobs %}
                                     <tr>
                                         <td class="job-cell">{{ job.工作 if job.工作 else '無資訊' }}</td>
+                                        <td class="job-cell">{{ job.行業 if job.行業 else '無資訊' }}</td>
                                         <td class="job-cell">{{ job.時間 if job.時間 else '無資訊' }}</td>
                                         <td class="job-cell">{{ job.薪資 if job.薪資 else '無資訊' }}</td>
                                         <td class="job-cell">{{ job.地點 if job.地點 else '無資訊' }}</td>
@@ -200,6 +202,10 @@
                                                         <tr>
                                                             <td class="fw-bold bg-light" style="width: 25%;">工作</td>
                                                             <td>{{ job.工作 if job.工作 else '無資訊' }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="fw-bold bg-light">行業</td>
+                                                            <td>{{ job.行業 if job.行業 else '無資訊' }}</td>
                                                         </tr>
                                                         <tr>
                                                             <td class="fw-bold bg-light">時間</td>

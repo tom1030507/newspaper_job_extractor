@@ -177,6 +177,7 @@ def get_image_description(process_id, image_name):
     if not api_key:
         return [{
             "工作": "未設置Gemini API密鑰",
+            "行業": "",
             "時間": "",
             "薪資": "",
             "地點": "",
@@ -188,6 +189,7 @@ def get_image_description(process_id, image_name):
     if process_id not in image_storage or image_name not in image_storage[process_id]:
         return [{
             "工作": "圖片不存在",
+            "行業": "",
             "時間": "",
             "薪資": "",
             "地點": "",
@@ -207,19 +209,22 @@ def get_image_description(process_id, image_name):
         # 調用Gemini API
         prompt = """請分析這張圖片中的所有就業資訊，可能包含多個工作崗位。請以JSON格式回答，包含一個工作列表，每個工作包含以下欄位：
         - 工作：工作職位或職業名稱
+        - 行業：根據工作內容判斷屬於以下哪個行業分類，必須從下列選項中選擇一個：
+          "農、林、漁、牧業"、"礦業及土石採取業"、"製造業"、"電力及燃氣供應業"、"用水供應及污染整治業"、"營建工程業"、"批發及零售業"、"運輸及倉儲業"、"住宿及餐飲業"、"出版影音及資通訊業"、"金融及保險業"、"不動產業"、"專業、科學及技術服務業"、"支援服務業"、"公共行政及國防；強制性社會安全"、"教育業"、"醫療保健及社會工作服務業"、"藝術、娛樂及休閒服務業"、"其他服務業"
         - 時間：工作時間或營業時間
         - 薪資：薪資待遇或收入
         - 地點：工作地點或地址
         - 聯絡方式：電話、地址或其他聯絡資訊
         - 其他：其他相關資訊或備註
 
-        請用繁體中文回答，如果某個欄位沒有資訊請填入空字串。
+        請用繁體中文回答，如果某個欄位沒有資訊請填入空字串。行業欄位必須從上述19個分類中選擇最合適的一個。
         請直接回答JSON格式的工作列表，不要包含其他說明文字。
         
         範例格式：
         [
             {
                 "工作": "服務員",
+                "行業": "住宿及餐飲業",
                 "時間": "9:00-18:00",
                 "薪資": "時薪160元起",
                 "地點": "台北市信義區",
@@ -228,6 +233,7 @@ def get_image_description(process_id, image_name):
             },
             {
                 "工作": "廚師",
+                "行業": "住宿及餐飲業",
                 "時間": "早班 6:00-14:00",
                 "薪資": "月薪35000元",
                 "地點": "台北市大安區",
@@ -262,7 +268,7 @@ def get_image_description(process_id, image_name):
                     description_json = []
             
             # 確保每個工作物件都有所有必要欄位
-            required_fields = ["工作", "時間", "薪資", "地點", "聯絡方式", "其他"]
+            required_fields = ["工作", "行業", "時間", "薪資", "地點", "聯絡方式", "其他"]
             for job in description_json:
                 if isinstance(job, dict):
                     for field in required_fields:
@@ -273,6 +279,7 @@ def get_image_description(process_id, image_name):
             if not description_json:
                 return [{
                     "工作": "未識別到工作資訊",
+                    "行業": "",
                     "時間": "",
                     "薪資": "",
                     "地點": "",
@@ -286,6 +293,7 @@ def get_image_description(process_id, image_name):
             # 如果JSON解析失敗，嘗試從文字中提取資訊
             return [{
                 "工作": "",
+                "行業": "",
                 "時間": "",
                 "薪資": "",
                 "地點": "",
@@ -297,6 +305,7 @@ def get_image_description(process_id, image_name):
         print(f"獲取圖片描述時出錯: {str(e)}")
         return [{
             "工作": "獲取描述時出錯",
+            "行業": "",
             "時間": "",
             "薪資": "",
             "地點": "",
@@ -614,6 +623,7 @@ def download_results(process_id):
                                 if len(description) > 1:
                                     desc_text += f"工作 {i}\n" + "-"*20 + "\n"
                                 desc_text += f"工作：{job.get('工作', '無資訊')}\n"
+                                desc_text += f"行業：{job.get('行業', '無資訊')}\n"
                                 desc_text += f"時間：{job.get('時間', '無資訊')}\n"
                                 desc_text += f"薪資：{job.get('薪資', '無資訊')}\n"
                                 desc_text += f"地點：{job.get('地點', '無資訊')}\n"
@@ -644,6 +654,7 @@ def download_results(process_id):
                             if len(description) > 1:
                                 desc_text += f"工作 {i}\n" + "-"*20 + "\n"
                             desc_text += f"工作：{job.get('工作', '無資訊')}\n"
+                            desc_text += f"行業：{job.get('行業', '無資訊')}\n"
                             desc_text += f"時間：{job.get('時間', '無資訊')}\n"
                             desc_text += f"薪資：{job.get('薪資', '無資訊')}\n"
                             desc_text += f"地點：{job.get('地點', '無資訊')}\n"
