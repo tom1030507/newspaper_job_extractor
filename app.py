@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, send_from_directory, send_file, session, flash
+from flask import Flask, request, render_template, redirect, url_for, send_from_directory, send_file, session, flash, make_response
 import os
 import cv2
 import numpy as np
@@ -27,16 +27,94 @@ app.config['SECRET_KEY'] = secrets.token_hex(16)  # 添加密鑰用於session加
 
 # 設定Gemini API相關配置
 
-# 確保上傳和結果目錄存在
+# 儲存處理後的圖片資料
+image_storage = {}
+
+# 確保上傳目錄存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['RESULTS_FOLDER'], exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def get_image_description(image_path, process_id, image_name):
-    """使用Gemini API獲取圖片的文字說明"""
+def process_image_data(image, process_id, image_name, debug_mode=0):
+    """處理圖像並儲存結果"""
+    from image_processor import process_image as original_process_image
+    import tempfile
+    import shutil
+    
+    # 創建臨時目錄進行處理
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        # 使用原始處理函數處理到臨時目錄
+        original_process_image(image, temp_dir, image_name, debug_mode)
+        
+        # 將處理結果儲存
+        if process_id not in image_storage:
+            image_storage[process_id] = {}
+        
+        # 遍歷臨時目錄中的所有圖片檔案
+        for filename in os.listdir(temp_dir):
+            if filename.endswith(('.jpg', '.jpeg', '.png')):
+                file_path = os.path.join(temp_dir, filename)
+                
+                # 讀取圖片並編碼
+                with open(file_path, 'rb') as f:
+                    image_data = f.read()
+                    base64_data = base64.b64encode(image_data).decode('utf-8')
+                    
+                    # 儲存圖片資料
+                    image_storage[process_id][filename] = {
+                        'base64': base64_data,
+                        'binary': image_data,
+                        'format': filename.split('.')[-1].lower()
+                    }
+        
+        return list(image_storage[process_id].keys())
+        
+    finally:
+        # 清理臨時目錄
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+def get_image_description(process_id, image_name):
+    """獲取圖片的AI描述"""
+    
+    # 從session中獲取API密鑰
+    api_key = session.get('gemini_api_key', '')
+    
+    # 如果沒有設置API密鑰，返回默認訊息
+    if not api_key:
+        return "未設置Gemini API密鑰，請在首頁設置"
+    
+    # 檢查圖片是否存在
+    if process_id not in image_storage or image_name not in image_storage[process_id]:
+        return "圖片不存在"
+    
+    try:
+        # 配置API密鑰
+        genai.configure(api_key=api_key)
+        MODEL = genai.GenerativeModel('gemini-2.0-flash-lite')
+        
+        # 取得圖片資料
+        image_data = image_storage[process_id][image_name]['binary']
+        img = Image.open(BytesIO(image_data))
+        
+        # 調用Gemini API
+        prompt = "請描述這張圖片中的內容，特別是裡面可能包含的就業資訊或新聞內容。請使用繁體中文回答，並保持簡潔（不超過100字）。"
+        response = MODEL.generate_content([prompt, img])
+        
+        # 獲取響應文字
+        description = response.text
+        
+        return description
+    
+    except Exception as e:
+        print(f"獲取圖片描述時出錯: {str(e)}")
+        return f"獲取圖片描述時出錯: {str(e)}"
+
+def get_image_description_legacy(image_path, process_id, image_name):
+    """使用Gemini API獲取圖片的文字說明（兼容舊版本）"""
     
     # 從session中獲取API密鑰
     api_key = session.get('gemini_api_key', '')
@@ -112,85 +190,121 @@ def upload_file():
         file_path = os.path.join(process_dir, filename)
         file.save(file_path)
         
-        # 設定輸出目錄
-        output_folder = os.path.join(app.config['RESULTS_FOLDER'], process_id)
-        
         # 處理檔案
-        main(file_path, output_folder, debug_mode=debug_mode)
+        try:
+            if file_path.lower().endswith('.pdf'):
+                # PDF 處理
+                import fitz
+                pdf_document = fitz.open(file_path)
+                pdf_base_name = os.path.splitext(filename)[0]
+                
+                for page_num in range(len(pdf_document)):
+                    page = pdf_document.load_page(page_num)
+                    page_rect = page.rect
+                    width_inch = page_rect.width / 72
+                    height_inch = page_rect.height / 72
+                    suggested_dpi = max(300, int(2000 / max(width_inch, height_inch)))
+                    pix = page.get_pixmap(dpi=suggested_dpi, alpha=False, annots=True)
+                    
+                    # 轉換為 OpenCV 格式
+                    img_array = np.frombuffer(pix.samples, dtype=np.uint8)
+                    image = img_array.reshape((pix.height, pix.width, pix.n))
+                    if pix.n == 3:  # RGB
+                        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                    elif pix.n == 4:  # RGBA
+                        image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
+                    
+                    if image is not None:
+                        image_name = f"{pdf_base_name}_page{page_num + 1}"
+                        page_process_id = f"{process_id}_page{page_num + 1}"
+                        process_image_data(image, page_process_id, image_name, debug_mode)
+                
+                pdf_document.close()
+            else:
+                # 單一圖像處理
+                image = cv2.imread(file_path)
+                if image is not None:
+                    image_name = os.path.splitext(filename)[0]
+                    process_image_data(image, process_id, image_name, debug_mode)
+            
+            # 重定向到結果頁面
+            return redirect(url_for('results', process_id=process_id))
+            
+        except Exception as e:
+            flash(f'處理檔案時發生錯誤: {str(e)}', 'danger')
+            return redirect(url_for('index'))
         
-        # 重定向到結果頁面
-        return redirect(url_for('results', process_id=process_id))
+        finally:
+            # 清理上傳的檔案
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            if os.path.exists(process_dir):
+                shutil.rmtree(process_dir, ignore_errors=True)
     
     flash('不支援的檔案格式', 'danger')
     return redirect(url_for('index'))
 
 @app.route('/results/<process_id>')
 def results(process_id):
-    base_result_dir = os.path.join(app.config['RESULTS_FOLDER'], process_id)
-    
-    # 檢查如果是PDF檔案（檢查是否存在以_page1結尾的目錄）
-    pdf_page_dirs = glob.glob(f"{base_result_dir}_page*")
-    
-    if not pdf_page_dirs and not os.path.exists(base_result_dir):
-        return "處理結果不存在", 404
-    
-    # 獲取結果目錄中的所有圖像檔案
+    # 檢查是否有此處理ID的資料
     image_files = []
     debug_files = []
+    is_pdf = False
     
-    # PDF處理 - 遍歷所有頁面目錄
-    if pdf_page_dirs:
+    # 檢查是否為PDF（尋找帶有 _page 的處理ID）
+    pdf_page_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_page")]
+    
+    if pdf_page_keys:
+        is_pdf = True
         # 按頁碼排序
-        pdf_page_dirs.sort(key=lambda x: int(x.split('_page')[-1]))
+        pdf_page_keys.sort(key=lambda x: int(x.split('_page')[-1]))
         
-        for page_dir in pdf_page_dirs:
-            page_num = os.path.basename(page_dir).split('_page')[-1]
+        for page_key in pdf_page_keys:
+            page_num = page_key.split('_page')[-1]
             
-            # 為每一頁創建一個子目錄結構
-            for root, dirs, files in os.walk(page_dir):
-                for file in files:
-                    if file.endswith(('.jpg', '.jpeg', '.png')):
-                        # 獲取相對於results目錄的路徑
-                        full_path = os.path.join(root, file)
-                        rel_path = os.path.relpath(full_path, app.config['RESULTS_FOLDER'])
-                        
-                        # 檢查是否為偵錯圖像
-                        if any(debug_type in file for debug_type in ['_original', '_mask_', '_final_combined']):
-                            debug_files.append({
-                                'path': rel_path,
-                                'page': page_num
-                            })
-                        else:
-                            # 獲取圖片描述
-                            description = get_image_description(full_path, process_id, os.path.basename(file))
-                            
-                            image_files.append({
-                                'path': rel_path,
-                                'page': page_num,
-                                'description': description
-                            })
-    else:
+            for filename, image_data in image_storage[page_key].items():
+                # 檢查是否為偵錯圖像
+                if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                    debug_files.append({
+                        'filename': filename,
+                        'page': page_num,
+                        'base64': image_data['base64'],
+                        'format': image_data['format']
+                    })
+                else:
+                    # 獲取圖片描述
+                    description = get_image_description(page_key, filename)
+                    
+                    image_files.append({
+                        'filename': filename,
+                        'page': page_num,
+                        'base64': image_data['base64'],
+                        'format': image_data['format'],
+                        'description': description
+                    })
+    elif process_id in image_storage:
         # 單一圖像處理
-        for root, dirs, files in os.walk(base_result_dir):
-            for file in files:
-                if file.endswith(('.jpg', '.jpeg', '.png')):
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, app.config['RESULTS_FOLDER'])
-                    # 檢查是否為偵錯圖像
-                    if any(debug_type in file for debug_type in ['_original', '_mask_', '_final_combined']):
-                        debug_files.append({
-                            'path': rel_path,
-                            'page': '1'
-                        })
-                    else:
-                        # 獲取圖片描述
-                        description = get_image_description(full_path, process_id, os.path.basename(file))
-                        
-                        image_files.append({
-                            'path': rel_path,
-                            'page': '1',
-                            'description': description
-                        })
+        for filename, image_data in image_storage[process_id].items():
+            if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                debug_files.append({
+                    'filename': filename,
+                    'page': '1',
+                    'base64': image_data['base64'],
+                    'format': image_data['format']
+                })
+            else:
+                # 獲取圖片描述
+                description = get_image_description(process_id, filename)
+                
+                image_files.append({
+                    'filename': filename,
+                    'page': '1',
+                    'base64': image_data['base64'],
+                    'format': image_data['format'],
+                    'description': description
+                })
+    else:
+        return "處理結果不存在", 404
     
     # 對頁碼進行排序
     image_files.sort(key=lambda x: int(x['page']))
@@ -201,75 +315,73 @@ def results(process_id):
                           image_files=image_files,
                           debug_files=debug_files,
                           has_debug_files=len(debug_files) > 0,
-                          is_pdf=len(pdf_page_dirs) > 0,
+                          is_pdf=is_pdf,
                           model_name="gemini-2.0-flash-lite")
 
-@app.route('/view_image/<path:filename>')
-def view_image(filename):
-    # 將路徑中的斜線轉換為操作系統適用的斜線
-    parts = filename.split('/')
-    if len(parts) > 1:
-        # 處理子目錄的情況
-        directory = os.path.join(app.config['RESULTS_FOLDER'], *parts[:-1])
-        filename = parts[-1]
-    else:
-        # 沒有子目錄的情況
-        directory = app.config['RESULTS_FOLDER']
+@app.route('/view_image/<process_id>/<filename>')
+def view_image(process_id, filename):
+    # 檢查是否存在該圖片
+    if process_id in image_storage and filename in image_storage[process_id]:
+        image_data = image_storage[process_id][filename]['binary']
+        format_type = image_storage[process_id][filename]['format']
+        
+        response = make_response(image_data)
+        response.headers['Content-Type'] = f'image/{format_type}'
+        return response
     
-    # 檢查文件是否存在
-    if not os.path.exists(os.path.join(directory, filename)):
-        return "圖像不存在", 404
+    # 檢查PDF頁面
+    pdf_page_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_page")]
+    for page_key in pdf_page_keys:
+        if filename in image_storage[page_key]:
+            image_data = image_storage[page_key][filename]['binary']
+            format_type = image_storage[page_key][filename]['format']
+            
+            response = make_response(image_data)
+            response.headers['Content-Type'] = f'image/{format_type}'
+            return response
     
-    return send_from_directory(directory, filename)
+    return "圖像不存在", 404
 
 @app.route('/download/<process_id>')
 def download_results(process_id):
-    base_result_dir = os.path.join(app.config['RESULTS_FOLDER'], process_id)
-    
-    # 檢查是否為PDF（檢查是否存在以_page1結尾的目錄）
-    pdf_page_dirs = glob.glob(f"{base_result_dir}_page*")
-    
-    if not pdf_page_dirs and not os.path.exists(base_result_dir):
-        return "處理結果不存在", 404
-    
-    # 創建記憶體中的ZIP檔案
+    # 創建ZIP檔案
     memory_file = io.BytesIO()
     
+    # 檢查是否為PDF
+    pdf_page_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_page")]
+    
+    if not pdf_page_keys and process_id not in image_storage:
+        return "處理結果不存在", 404
+    
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
-        # PDF情況 - 遍歷所有頁面目錄
-        if pdf_page_dirs:
-            for page_dir in pdf_page_dirs:
-                page_num = os.path.basename(page_dir).split('_page')[-1]
+        # PDF情況
+        if pdf_page_keys:
+            pdf_page_keys.sort(key=lambda x: int(x.split('_page')[-1]))
+            
+            for page_key in pdf_page_keys:
+                page_num = page_key.split('_page')[-1]
                 
-                # 遍歷當前頁面目錄中的所有文件
-                for root, dirs, files in os.walk(page_dir):
-                    for file in files:
-                        if file.endswith(('.jpg', '.jpeg', '.png')):
-                            file_path = os.path.join(root, file)
-                            # 在ZIP中創建頁面子目錄
-                            arcname = f"page_{page_num}/{os.path.basename(file)}"
-                            zf.write(file_path, arcname)
-                            
-                            # 獲取新的描述並添加到ZIP中
-                            if not any(debug_type in file for debug_type in ['_original', '_mask_', '_final_combined']):
-                                description = get_image_description(file_path, process_id, os.path.basename(file))
-                                desc_text_name = f"page_{page_num}/{os.path.splitext(os.path.basename(file))[0]}_description.txt"
-                                zf.writestr(desc_text_name, description)
+                for filename, image_data in image_storage[page_key].items():
+                    # 添加圖片
+                    arcname = f"page_{page_num}/{filename}"
+                    zf.writestr(arcname, image_data['binary'])
+                    
+                    # 添加描述（如果不是偵錯圖片）
+                    if not any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                        description = get_image_description(page_key, filename)
+                        desc_text_name = f"page_{page_num}/{os.path.splitext(filename)[0]}_description.txt"
+                        zf.writestr(desc_text_name, description)
         else:
             # 單一圖像情況
-            for root, dirs, files in os.walk(base_result_dir):
-                for file in files:
-                    if file.endswith(('.jpg', '.jpeg', '.png')):
-                        file_path = os.path.join(root, file)
-                        # 計算相對路徑，使ZIP內的檔案結構更清晰
-                        arcname = os.path.relpath(file_path, base_result_dir)
-                        zf.write(file_path, arcname)
-                        
-                        # 獲取新的描述並添加到ZIP中
-                        if not any(debug_type in file for debug_type in ['_original', '_mask_', '_final_combined']):
-                            description = get_image_description(file_path, process_id, os.path.basename(file))
-                            desc_text_name = f"{os.path.splitext(arcname)[0]}_description.txt"
-                            zf.writestr(desc_text_name, description)
+            for filename, image_data in image_storage[process_id].items():
+                # 添加圖片
+                zf.writestr(filename, image_data['binary'])
+                
+                # 添加描述（如果不是偵錯圖片）
+                if not any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                    description = get_image_description(process_id, filename)
+                    desc_text_name = f"{os.path.splitext(filename)[0]}_description.txt"
+                    zf.writestr(desc_text_name, description)
     
     # 將指針移到檔案開頭
     memory_file.seek(0)
@@ -280,6 +392,16 @@ def download_results(process_id):
         as_attachment=True,
         download_name=f'newspaper_blocks_{process_id}.zip'
     )
+
+# 定期清理功能
+def cleanup_old_data(max_age_hours=24):
+    """清理超過指定時間的資料"""
+    import time
+    from datetime import datetime, timedelta
+    
+    # 注意：這個實作假設我們在資料中添加時間戳記
+    # 在實際使用中，您可能需要追蹤每個 process_id 的創建時間
+    pass
 
 # 定期清理功能（可以通過排程任務調用）
 def cleanup_old_files(max_age_hours=24):
@@ -294,17 +416,6 @@ def cleanup_old_files(max_age_hours=24):
         item_path = os.path.join(app.config['UPLOAD_FOLDER'], item)
         if os.path.isdir(item_path) and os.path.getctime(item_path) < cutoff_timestamp:
             shutil.rmtree(item_path)
-    
-    # 清理結果目錄
-    for item in os.listdir(app.config['RESULTS_FOLDER']):
-        item_path = os.path.join(app.config['RESULTS_FOLDER'], item)
-        if os.path.isdir(item_path) and os.path.getctime(item_path) < cutoff_timestamp:
-            shutil.rmtree(item_path)
-        # 同時清理PDF頁面目錄
-        pdf_dirs = glob.glob(f"{item_path}_page*")
-        for pdf_dir in pdf_dirs:
-            if os.path.isdir(pdf_dir) and os.path.getctime(pdf_dir) < cutoff_timestamp:
-                shutil.rmtree(pdf_dir)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0') 
