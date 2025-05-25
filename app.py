@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, send_from_directory, send_file, session, flash, make_response
+from flask import Flask, request, render_template, redirect, url_for, send_from_directory, send_file, session, flash, make_response, jsonify
 import os
 import cv2
 import numpy as np
@@ -14,6 +14,8 @@ from io import BytesIO
 import json
 import secrets
 from dotenv import load_dotenv
+import requests  # 添加 requests 庫用於發送 HTTP 請求
+from datetime import datetime
 
 # 載入環境變數
 load_dotenv()
@@ -1033,6 +1035,124 @@ def cleanup_old_files(max_age_hours=24):
         item_path = os.path.join(app.config['UPLOAD_FOLDER'], item)
         if os.path.isdir(item_path) and os.path.getctime(item_path) < cutoff_timestamp:
             shutil.rmtree(item_path)
+
+@app.route('/send_to_spreadsheet/<process_id>', methods=['POST'])
+def send_to_spreadsheet(process_id):
+    """將處理結果發送到 Google Spreadsheet"""
+    try:
+        # 從請求中獲取 Google Apps Script URL
+        data = request.get_json()
+        apps_script_url = data.get('apps_script_url') if data else None
+        
+        if not apps_script_url:
+            return jsonify({'error': '請提供 Google Apps Script URL'}), 400
+        
+        # 收集職缺資料 - 使用與 results 和 download 相同的邏輯
+        all_jobs = []
+        
+        # 檢查是否為PDF
+        pdf_page_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_page")]
+        
+        if pdf_page_keys:
+            # PDF情況
+            pdf_page_keys.sort(key=lambda x: int(x.split('_page')[-1]))
+            
+            for page_key in pdf_page_keys:
+                page_num = page_key.split('_page')[-1]
+                
+                for filename, image_data in image_storage[page_key].items():
+                    # 跳過偵錯圖像
+                    if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                        continue
+                    
+                    # 獲取圖片描述
+                    description = get_image_description(page_key, filename)
+                    
+                    # 收集有效的工作資訊
+                    if isinstance(description, list):
+                        for i, job in enumerate(description):
+                            if is_valid_job(job):
+                                job_info = job.copy()
+                                job_info['來源圖片'] = filename
+                                job_info['頁碼'] = page_num
+                                job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
+                                if len([j for j in description if is_valid_job(j)]) > 1:
+                                    valid_jobs = [j for j in description if is_valid_job(j)]
+                                    job_index = valid_jobs.index(job) + 1
+                                    job_info['工作編號'] = f"工作 {job_index}"
+                                else:
+                                    job_info['工作編號'] = ""
+                                all_jobs.append(job_info)
+        elif process_id in image_storage:
+            # 單一圖像情況
+            for filename, image_data in image_storage[process_id].items():
+                # 跳過偵錯圖像
+                if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                    continue
+                
+                # 獲取圖片描述
+                description = get_image_description(process_id, filename)
+                
+                # 收集有效的工作資訊
+                if isinstance(description, list):
+                    for i, job in enumerate(description):
+                        if is_valid_job(job):
+                            job_info = job.copy()
+                            job_info['來源圖片'] = filename
+                            job_info['頁碼'] = '1'
+                            job_info['圖片編號'] = filename.split('.')[0]
+                            if len([j for j in description if is_valid_job(j)]) > 1:
+                                valid_jobs = [j for j in description if is_valid_job(j)]
+                                job_index = valid_jobs.index(job) + 1
+                                job_info['工作編號'] = f"工作 {job_index}"
+                            else:
+                                job_info['工作編號'] = ""
+                            all_jobs.append(job_info)
+        else:
+            return jsonify({'error': '處理結果不存在'}), 404
+        
+        if not all_jobs:
+            return jsonify({'error': '沒有找到有效的職缺資料'}), 404
+        
+        # 準備發送到 Google Apps Script 的資料
+        payload = {
+            'action': 'addJobs',
+            'jobs': all_jobs,
+            'metadata': {
+                'process_id': process_id,
+                'total_jobs': len(all_jobs),
+                'timestamp': datetime.now().isoformat(),
+                'source': 'newspaper_job_extractor'
+            }
+        }
+        
+        # 發送資料到 Google Apps Script
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        
+        response = requests.post(apps_script_url, json=payload, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json() if response.content else {}
+            return jsonify({
+                'success': True,
+                'message': f'成功發送 {len(all_jobs)} 筆職缺資料到 Google Spreadsheet',
+                'jobs_sent': len(all_jobs),
+                'response': result
+            }), 200
+        else:
+            return jsonify({
+                'error': f'發送失敗，狀態碼: {response.status_code}',
+                'response_text': response.text
+            }), response.status_code
+            
+    except requests.exceptions.Timeout:
+        return jsonify({'error': '請求超時，請檢查 Google Apps Script URL 是否正確'}), 408
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'網路請求錯誤: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'發生錯誤: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0') 

@@ -149,8 +149,34 @@ python app.py
 
 1. **上傳檔案** - 支持 JPG、PNG 和 PDF 檔案
 2. **偵錯模式** - 可選擇保存處理過程中的中間圖像，幫助理解分割過程
-3. **查看結果** - 以網格形式顯示提取的區塊
-4. **下載結果** - 將提取的所有區塊打包下載為 ZIP 檔案
+3. **AI 分析** - 使用 Google Gemini AI 自動分析提取的工作區塊，識別職位、薪資、地點等資訊
+4. **查看結果** - 以網格形式顯示提取的區塊和 AI 分析結果
+5. **下載結果** - 將提取的所有區塊打包下載為 ZIP 檔案，包含 CSV、SQL 等多種格式
+6. **🆕 Google Spreadsheet 整合** - 直接將職缺資料發送到您的 Google Spreadsheet
+
+### 🆕 Google Spreadsheet 整合功能
+
+本工具現在支援將提取的職缺資料直接發送到 Google Spreadsheet，讓您可以更方便地管理和分析職缺資料。
+
+#### 主要特色：
+- **一鍵發送**：處理完成後，直接將所有職缺資料發送到您的 Google Spreadsheet
+- **自動整理**：資料會自動整理成表格格式，包含職位、薪資、地點、聯絡方式等欄位
+- **即時同步**：支援多次發送，新資料會自動添加到試算表中
+- **完整記錄**：包含處理時間、來源圖片、處理 ID 等完整資訊
+
+#### 設定步驟：
+1. 參考 `Google_Spreadsheet_Setup_Guide.md` 設定您的 Google Apps Script
+2. 在結果頁面點擊「發送到 Google Spreadsheet」
+3. 輸入您的 Google Apps Script URL
+4. 點擊發送，資料將自動傳送到您的試算表
+
+#### 資料格式：
+發送到 Google Spreadsheet 的資料包含以下欄位：
+- 添加時間、工作、行業、時間、薪資、地點
+- 聯絡方式、其他資訊、來源圖片、頁碼
+- 工作編號、圖片編號、處理 ID、來源系統
+
+詳細設定說明請參考：[Google Spreadsheet 設定指南](Google_Spreadsheet_Setup_Guide.md)
 
 ### 注意事項
 
