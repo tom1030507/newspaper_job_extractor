@@ -152,11 +152,9 @@
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="images-tab" data-bs-toggle="tab" data-bs-target="#images" type="button" role="tab" aria-controls="images" aria-selected="false">圖片描述</button>
                 </li>
-                {% if has_debug_files %}
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="debug-tab" data-bs-toggle="tab" data-bs-target="#debug" type="button" role="tab" aria-controls="debug" aria-selected="false">處理圖像</button>
+                    <button class="nav-link" id="debug-tab" data-bs-toggle="tab" data-bs-target="#debug" type="button" role="tab" aria-controls="debug" aria-selected="false">處理步驟</button>
                 </li>
-                {% endif %}
             </ul>
             
             <!-- 標籤內容 -->
@@ -289,42 +287,118 @@
                     {% endif %}
                 </div>
                 
-                <!-- 調試圖像標籤 -->
-                {% if has_debug_files %}
+                <!-- 處理步驟標籤 -->
                 <div class="tab-pane fade" id="debug" role="tabpanel" aria-labelledby="debug-tab">
                     <div class="mt-3">
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle"></i> 
-                            以下是處理過程中生成的調試圖像，可幫助您理解圖像如何被分割成區塊。
+                            以下是圖像處理的各個步驟，幫助您理解系統如何從原始圖像中提取工作廣告區塊。
                         </div>
                         
                         <div class="row mt-4">
+                            {% set current_page = '' %}
                             {% for debug in debug_files %}
+                                {% if debug.page != current_page %}
+                                    {% set current_page = debug.page %}
+                                    {% if debug_files|length > 1 and is_pdf %}
+                                        {% if not loop.first %}
+                                            </div> <!-- 結束前一頁的容器 -->
+                                        {% endif %}
+                                        <div class="mb-5">
+                                            <h4 class="text-primary mb-4">
+                                                <i class="bi bi-file-earmark-text"></i> 
+                                                第 {{ debug.page }} 頁處理步驟
+                                            </h4>
+                                    {% endif %}
+                                {% endif %}
+                                
+                                {% set step_number = 
+                                    1 if 'original' in debug.filename
+                                    else 2 if 'mask_unprocessed' in debug.filename
+                                    else 3 if 'mask_processed' in debug.filename
+                                    else 4 if 'final_combined' in debug.filename
+                                    else 0
+                                %}
+                                
                                 <div class="col-12 mb-4">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            {% if "original" in debug.filename %}
-                                                原始圖像
-                                            {% elif "mask_unprocessed" in debug.filename %}
-                                                初始遮罩圖像
-                                            {% elif "mask_processed" in debug.filename %}
-                                                處理後的遮罩圖像
-                                            {% elif "final_combined" in debug.filename %}
-                                                最終組合圖像
-                                            {% else %}
-                                                處理圖像
-                                            {% endif %}
+                                    <div class="card border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                            <h5 class="mb-0">
+                                                <i class="bi bi-{{ 
+                                                    'image' if 'original' in debug.filename 
+                                                    else 'grid-3x3-gap' if 'mask_unprocessed' in debug.filename
+                                                    else 'grid-3x3-gap-fill' if 'mask_processed' in debug.filename
+                                                    else 'collection' if 'final_combined' in debug.filename
+                                                    else 'gear'
+                                                }}"></i>
+                                                步驟 {{ step_number }}: 
+                                                {% if "original" in debug.filename %}
+                                                    原始圖像
+                                                {% elif "mask_unprocessed" in debug.filename %}
+                                                    初始區塊檢測
+                                                {% elif "mask_processed" in debug.filename %}
+                                                    區塊優化處理
+                                                {% elif "final_combined" in debug.filename %}
+                                                    最終結果展示
+                                                {% else %}
+                                                    處理圖像
+                                                {% endif %}
+                                            </h5>
                                         </div>
-                                        <div class="card-body text-center">
-                                            <img src="data:image/{{ debug.format }};base64,{{ debug.base64 }}" class="img-fluid" alt="調試圖像" onerror="this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAMAAAC8EZcfAAAANlBMVEX////v7+/6+vrz8/P29vbp6en4+Pjs7OzT09PLy8vExMTi4uLb29vPz8/X19fIyMi/v7+5ubnGbvTSAAADDklEQVR4nO2b2ZarIBBFBQQZ9f+/tvpgTKcDKiDYfda9ee90B2yvkqqCQqTRaDQajUaj0Wg0Go3m03HGsBWjFnI+YeOuNeNMcL7ZWRREfLscA4awKwZn7EJcAxBjMZMNwZm7zIPYImNMRHGH2Qk5Td4SthDnVG8nzGB8lNfEEBSNVghtfMGJ0Z20Q0jdkyiDAzLGKOPkHd1ZbiEOZJyObtVWxACK8QCQDTkKEZPfCQbEaXc28l9wosmPkIGOsqUR4uh7qiO8AUzGaX5hRHdw03go8i9hMJrwFFPAvIUwYTCCCQcEwkscBcSZNyBIeDKAShIGMzMjApE3YZoR4azozIghPMNJkJCDEQqVMCfEKbwCEQlzkgHnxDCmJz1FKmGO91AWKRHCnCGB0waFMMcSOvVGhDBnwKDUB5EwR+L6UCPMmeH7UCXMkdTpM2GOnItGI9wgSWmGhDlDfgU3EeY0Gc3QSJjj4q83NxPmnLPJeY9KmOsElzaCeghzbPRFkx5CzETQRZhC4tu+PYSp1xPbGOohTL0u3jgQ9hDmjJFvJsz9yrYQ5rGG7/7HE+ZNhHmseazheMI81jCBMI81HE+YxxomEOaxhuMJ81hD+d8cG7YT5rGGIwnzWMMkwjzWMIEwjzUcSZjHGiYR5rGGCYRFrOEwwjzWMIkwjzVMICxiDYcR5rGGSYR5rGESYedYwyTC1l3D/wlVi94r4DOE/RGLL/30RfjZf/rxJ9t+XH92/tmPrf3Y+rNj6xPY/eR7CrufPM/h9J9c0Hj+yRNFz5+cCDfBT+sJSsOPbg1Kww+uTYrxFmu4CWKs4SaoscabkOINNzHEazcxxV2b2GrvJgbbuwkaj7aJIsZyE1nc5SbG2MtNrPGXmzJC8bhSRCgqRQUhUjUeFYyjqpIo8WARVTUeFcyiqoYrrSrJqiqperqSqqerqqTq6aqqqOobRWEM24Qb3UUAAAAASUVORK5CYII=';">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <img src="data:image/{{ debug.format }};base64,{{ debug.base64 }}" 
+                                                         class="img-fluid rounded shadow" 
+                                                         alt="處理步驟圖像" 
+                                                         style="max-height: 400px; width: 100%; object-fit: contain;">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="ps-3">
+                                                        <h6 class="text-primary">步驟說明</h6>
+                                                        <p class="text-muted small">
+                                                            {% if "original" in debug.filename %}
+                                                                這是經過方向校正後的原始報紙圖像，作為後續所有處理步驟的基礎。系統會分析此圖像來識別和提取工作廣告區塊。
+                                                            {% elif "mask_unprocessed" in debug.filename %}
+                                                                使用輪廓檢測算法找到的初始區塊位置。白色區域代表檢測到的潛在工作廣告區塊，黑色區域為背景。
+                                                            {% elif "mask_processed" in debug.filename %}
+                                                                經過膨脹和腐蝕操作優化後的區塊遮罩。這個步驟幫助填補區塊內的空隙，並平滑區塊邊界。
+                                                            {% elif "final_combined" in debug.filename %}
+                                                                將所有檢測到的區塊組合顯示的最終結果。每個區塊代表一個可能包含工作資訊的廣告區域。
+                                                            {% else %}
+                                                                處理過程中生成的中間圖像。
+                                                            {% endif %}
+                                                        </p>
+                                                        {% if "original" in debug.filename %}
+                                                            <div class="badge bg-success">輸入圖像</div>
+                                                        {% elif "mask_unprocessed" in debug.filename %}
+                                                            <div class="badge bg-info">區塊檢測</div>
+                                                        {% elif "mask_processed" in debug.filename %}
+                                                            <div class="badge bg-warning">圖像處理</div>
+                                                        {% elif "final_combined" in debug.filename %}
+                                                            <div class="badge bg-primary">最終結果</div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                                
+                                {% if loop.last and is_pdf and debug_files|length > 1 %}
+                                    </div> <!-- 結束最後一頁的容器 -->
+                                {% endif %}
                             {% endfor %}
                         </div>
+                        
+                        {% if not debug_files %}
+                            <div class="alert alert-warning text-center">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                沒有找到處理步驟圖像
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
-                {% endif %}
             </div>
             
             <div class="footer text-center">

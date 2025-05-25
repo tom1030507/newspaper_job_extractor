@@ -101,7 +101,7 @@ def check_and_correct_image_orientation(image):
     rotation_direction = check_and_get_rotation_direction(image)
     return apply_rotation_to_image(image, rotation_direction)
 
-def process_image_data(image, process_id, image_name, debug_mode=0):
+def process_image_data(image, process_id, image_name):
     """處理圖像並儲存結果"""
     from image_processor import process_image as original_process_image
     import tempfile
@@ -118,7 +118,7 @@ def process_image_data(image, process_id, image_name, debug_mode=0):
     try:
         # 使用原始圖片進行處理（不旋轉）
         print("使用原始圖片進行區塊分割處理...")
-        original_process_image(image, temp_dir, image_name, debug_mode)
+        original_process_image(image, temp_dir, image_name)
         
         # 將處理結果儲存
         if process_id not in image_storage:
@@ -375,9 +375,6 @@ def upload_file():
         return redirect(url_for('index'))
     
     if file and allowed_file(file.filename):
-        # 獲取偵錯模式選項
-        debug_mode = 1 if request.form.get('debug_mode') == 'on' else 0
-        
         # 創建唯一的處理ID
         process_id = str(uuid.uuid4())
         
@@ -417,7 +414,7 @@ def upload_file():
                     if image is not None:
                         image_name = f"{pdf_base_name}_page{page_num + 1}"
                         page_process_id = f"{process_id}_page{page_num + 1}"
-                        process_image_data(image, page_process_id, image_name, debug_mode)
+                        process_image_data(image, page_process_id, image_name)
                 
                 pdf_document.close()
             else:
@@ -425,7 +422,7 @@ def upload_file():
                 image = cv2.imread(file_path)
                 if image is not None:
                     image_name = os.path.splitext(filename)[0]
-                    process_image_data(image, process_id, image_name, debug_mode)
+                    process_image_data(image, process_id, image_name)
             
             # 重定向到結果頁面
             return redirect(url_for('results', process_id=process_id))
@@ -576,14 +573,29 @@ def results(process_id):
         return len([job for job in image['description'] if is_valid_job(job)])
     
     image_files.sort(key=count_valid_jobs)
-    debug_files.sort(key=lambda x: int(x['page']))
+    
+    # 定義處理步驟的順序
+    def get_step_order(debug_file):
+        filename = debug_file['filename']
+        if 'original' in filename:
+            return 1
+        elif 'mask_unprocessed' in filename:
+            return 2
+        elif 'mask_processed' in filename:
+            return 3
+        elif 'final_combined' in filename:
+            return 4
+        else:
+            return 5
+    
+    # 先按頁碼排序，再按步驟順序排序
+    debug_files.sort(key=lambda x: (int(x['page']), get_step_order(x)))
     
     return render_template('results.html', 
                           process_id=process_id, 
                           image_files=image_files,
                           debug_files=debug_files,
                           all_jobs=all_jobs,
-                          has_debug_files=len(debug_files) > 0,
                           is_pdf=is_pdf,
                           model_name="gemini-2.0-flash-lite")
 

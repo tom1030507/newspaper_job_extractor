@@ -96,6 +96,7 @@
                     <li>處理嵌套內容區塊以避免重複</li>
                     <li>檢測未填充區域以捕獲可能被主要檢測遺漏的內容</li>
                     <li>使用Gemini AI分析工作資訊並結構化顯示</li>
+                    <li>自動生成並顯示所有處理步驟的中間圖像，便於理解提取過程</li>
                 </ul>
             </div>
             
@@ -107,11 +108,6 @@
                             <label for="file" class="form-label">選擇報紙圖像或PDF文件</label>
                             <input type="file" class="form-control" id="file" name="file" accept=".jpg,.jpeg,.png,.pdf" required>
                             <div class="form-text">支持的檔案格式：JPG, JPEG, PNG, PDF</div>
-                        </div>
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="debug_mode" name="debug_mode">
-                            <label class="form-check-label" for="debug_mode">偵錯模式（保存額外處理圖像）</label>
-                            <div class="form-text">開啟此選項將保存處理過程中的中間圖像，有助於理解提取過程</div>
                         </div>
                         <button type="submit" class="btn btn-primary">開始提取</button>
                     </form>
