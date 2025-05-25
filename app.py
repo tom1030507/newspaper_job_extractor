@@ -3,19 +3,20 @@ import os
 import cv2
 import numpy as np
 from werkzeug.utils import secure_filename
-from image_processor import process_image, main
 import uuid
 import shutil
 import zipfile
 import io
-import glob
 import google.generativeai as genai
 from PIL import Image
 import base64
 from io import BytesIO
 import json
-import time
 import secrets
+from dotenv import load_dotenv
+
+# 載入環境變數
+load_dotenv()
 
 # 使用當前目錄作為靜態文件目錄，這樣可以直接訪問結果目錄
 app = Flask(__name__, static_folder='.', static_url_path='')
@@ -339,6 +340,12 @@ def get_image_description_legacy(image_path, process_id, image_name):
 
 @app.route('/')
 def index():
+    # 從環境變數讀取 API key，如果 session 中沒有的話
+    if not session.get('gemini_api_key'):
+        env_api_key = os.environ.get('GEMINI_API_KEY', '')
+        if env_api_key:
+            session['gemini_api_key'] = env_api_key
+    
     return render_template('index.html', api_key=session.get('gemini_api_key', ''), model_name="gemini-2.0-flash-lite")
 
 @app.route('/set_api_key', methods=['POST'])
@@ -509,7 +516,7 @@ def results(process_id):
                             # 只加入有效的工作資訊
                             if is_valid_job(job):
                                 job_info = job.copy()
-                                job_info['來源圖片'] = f"第{page_num}頁 - {filename}"
+                                job_info['來源圖片'] = filename  # 移除頁碼顯示，只保留檔名
                                 job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
                                 if len([j for j in description if is_valid_job(j)]) > 1:
                                     valid_jobs = [j for j in description if is_valid_job(j)]
@@ -624,14 +631,14 @@ def download_results(process_id):
                 page_num = page_key.split('_page')[-1]
                 
                 for filename, image_data in image_storage[page_key].items():
-                    # 添加圖片
-                    arcname = f"page_{page_num}/{filename}"
+                    # 添加圖片 - 移除頁碼前綴
+                    arcname = filename  # 直接使用檔名，不加頁碼前綴
                     zf.writestr(arcname, image_data['binary'])
                     
                     # 添加描述（如果不是偵錯圖片）
                     if not any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
                         description = get_image_description(page_key, filename)
-                        desc_text_name = f"page_{page_num}/{os.path.splitext(filename)[0]}_description.txt"
+                        desc_text_name = f"{os.path.splitext(filename)[0]}_description.txt"  # 移除頁碼前綴
                         
                         # 將工作列表轉換為可讀的表格格式
                         if isinstance(description, list) and description:

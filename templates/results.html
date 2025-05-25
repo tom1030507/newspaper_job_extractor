@@ -79,7 +79,7 @@
             word-break: break-all;
         }
         .jobs-table .other-cell {
-            max-width: 200px;
+            max-width: 300px;
             word-wrap: break-word;
         }
         .image-cell {
@@ -218,14 +218,7 @@
                             <i class="bi bi-info-circle"></i>
                             以下是每張圖片的詳細分析結果
                         </div>
-                        {% set current_page = "" %}
                         {% for image in image_files %}
-                            {% if is_pdf and image.page != current_page %}
-                                {% set current_page = image.page %}
-                                <div class="page-header">
-                                    <h4>第{{ current_page }}頁</h4>
-                                </div>
-                            {% endif %}
                             
                             {% if loop.index0 % 3 == 0 %}
                                 <div class="row row-cols-1 row-cols-md-3 g-4 mt-3">
@@ -306,30 +299,20 @@
                         </div>
                         
                         <div class="row mt-4">
-                            {% set current_page = "" %}
                             {% for debug in debug_files %}
-                                {% if is_pdf and debug.page != current_page %}
-                                    {% set current_page = debug.page %}
-                                    <div class="col-12">
-                                        <div class="page-header">
-                                            <h4>第{{ current_page }}頁</h4>
-                                        </div>
-                                    </div>
-                                {% endif %}
-                                
                                 <div class="col-12 mb-4">
                                     <div class="card">
                                         <div class="card-header">
                                             {% if "original" in debug.filename %}
-                                                原始圖像 {% if is_pdf %}(第{{ debug.page }}頁){% endif %}
+                                                原始圖像
                                             {% elif "mask_unprocessed" in debug.filename %}
-                                                初始遮罩圖像 {% if is_pdf %}(第{{ debug.page }}頁){% endif %}
+                                                初始遮罩圖像
                                             {% elif "mask_processed" in debug.filename %}
-                                                處理後的遮罩圖像 {% if is_pdf %}(第{{ debug.page }}頁){% endif %}
+                                                處理後的遮罩圖像
                                             {% elif "final_combined" in debug.filename %}
-                                                最終組合圖像 {% if is_pdf %}(第{{ debug.page }}頁){% endif %}
+                                                最終組合圖像
                                             {% else %}
-                                                處理圖像 {% if is_pdf %}(第{{ debug.page }}頁){% endif %}
+                                                處理圖像
                                             {% endif %}
                                         </div>
                                         <div class="card-body text-center">

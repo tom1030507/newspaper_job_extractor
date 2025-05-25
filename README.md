@@ -119,6 +119,24 @@ This tool now provides a Flask web interface that allows you to upload and proce
 pip install -r requirements.txt
 ```
 
+### Environment Configuration (Optional)
+
+For convenience, you can set up environment variables to automatically configure the Google Gemini API key:
+
+1. **Copy the example environment file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit the `.env` file and add your Google Gemini API key:**
+   ```bash
+   GEMINI_API_KEY=your-actual-api-key-here
+   ```
+
+3. **Get your API key from:** https://makersuite.google.com/app/apikey
+
+If you don't set up the `.env` file, you can still manually enter the API key in the web interface.
+
 ### Running the Web Server
 
 ```bash

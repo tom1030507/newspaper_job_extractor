@@ -119,6 +119,24 @@ output_folder_base = input_path + '_blocks'  # 輸出目錄
 pip install -r requirements.txt
 ```
 
+### 環境變數配置（可選）
+
+為了方便使用，您可以設置環境變數來自動配置 Google Gemini API 密鑰：
+
+1. **複製範例環境變數檔案：**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **編輯 `.env` 檔案並添加您的 Google Gemini API 密鑰：**
+   ```bash
+   GEMINI_API_KEY=your-actual-api-key-here
+   ```
+
+3. **從以下網址取得您的 API 密鑰：** https://makersuite.google.com/app/apikey
+
+如果您沒有設置 `.env` 檔案，仍然可以在 Web 界面中手動輸入 API 密鑰。
+
 ### 運行 Web 服務器
 
 ```bash
