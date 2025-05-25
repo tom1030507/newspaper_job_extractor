@@ -722,6 +722,8 @@
         }
         
         function switchToImageTab(imageId) {
+            console.log('切換到圖片標籤，目標圖片ID:', imageId);
+            
             // 切換到圖片描述標籤
             const imageTab = document.getElementById('images-tab');
             const jobsTab = document.getElementById('jobs-tab');
@@ -739,30 +741,83 @@
             imagesPanel.classList.add('show', 'active');
             
             // 尋找對應的圖片容器並滾動到該位置
-            setTimeout(function() {
-                const targetImage = document.querySelector(`[data-image-id="${imageId}"]`);
+            // 使用重試機制，因為標籤切換可能需要時間
+            function findAndScrollToImage(retryCount = 0) {
+                console.log(`尋找目標圖片元素... (嘗試 ${retryCount + 1})`);
+                // 只在圖片描述標籤中尋找，避免找到工作列表中的按鈕
+                const targetImage = document.querySelector(`#images [data-image-id="${imageId}"]`);
+                console.log('找到的目標圖片元素:', targetImage);
+                
                 if (targetImage) {
                     // 找到包含該圖片的最近的圖片容器
                     const imageContainer = targetImage.closest('.col') || targetImage.closest('.block-image');
+                    console.log('找到的圖片容器:', imageContainer);
+                    
                     if (imageContainer) {
-                        imageContainer.scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'center' 
-                        });
+                        // 尋找容器內的圖片元素
+                        const imageElement = imageContainer.querySelector('img');
+                        console.log('找到的圖片元素:', imageElement);
                         
-                        // 添加高亮效果
-                        imageContainer.style.border = '3px solid #0d6efd';
-                        imageContainer.style.borderRadius = '8px';
-                        imageContainer.style.transition = 'all 0.3s ease';
+                        if (imageElement) {
+                            // 滾動到圖片位置，讓圖片顯示時上方有適當間距
+                            imageElement.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'center' 
+                            });
+                            
+                            // 添加高亮效果到圖片
+                            imageElement.style.border = '3px solid #0d6efd';
+                            imageElement.style.borderRadius = '8px';
+                            imageElement.style.transition = 'all 0.3s ease';
+                            imageElement.style.boxShadow = '0 0 15px rgba(13, 110, 253, 0.5)';
+                            
+                            // 3秒後移除高亮效果
+                            setTimeout(function() {
+                                imageElement.style.border = '';
+                                imageElement.style.borderRadius = '';
+                                imageElement.style.boxShadow = '';
+                            }, 3000);
+                        } else {
+                            // 如果沒找到圖片元素，則滾動到容器中央
+                            imageContainer.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'center' 
+                            });
+                            
+                            // 添加高亮效果到容器
+                            imageContainer.style.border = '3px solid #0d6efd';
+                            imageContainer.style.borderRadius = '8px';
+                            imageContainer.style.transition = 'all 0.3s ease';
+                            
+                            // 3秒後移除高亮效果
+                            setTimeout(function() {
+                                imageContainer.style.border = '';
+                                imageContainer.style.borderRadius = '';
+                            }, 3000);
+                        }
                         
-                        // 3秒後移除高亮效果
-                        setTimeout(function() {
-                            imageContainer.style.border = '';
-                            imageContainer.style.borderRadius = '';
-                        }, 3000);
+                        console.log('成功滾動到目標圖片');
+                        return;
+                    } else {
+                        console.log('未找到圖片容器');
+                    }
+                } else {
+                    console.log('未找到目標圖片元素');
+                    // 列出所有可用的data-image-id
+                    const allImageElements = document.querySelectorAll('[data-image-id]');
+                    console.log('所有可用的圖片元素:', Array.from(allImageElements).map(el => el.getAttribute('data-image-id')));
+                    
+                    // 如果還沒找到且重試次數少於3次，則重試
+                    if (retryCount < 3) {
+                        setTimeout(() => findAndScrollToImage(retryCount + 1), 200);
+                        return;
                     }
                 }
-            }, 100);
+                
+                console.log('無法找到或滾動到目標圖片');
+            }
+            
+            setTimeout(findAndScrollToImage, 100);
         }
         
         function showStepImageModal(filename, stepNumber, base64Data, format) {
