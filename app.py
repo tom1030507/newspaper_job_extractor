@@ -682,6 +682,15 @@ def view_image(process_id, filename):
 
 @app.route('/download/<process_id>')
 def download_results(process_id):
+    import csv
+    from datetime import datetime
+    
+    # 獲取選擇的下載項目
+    include_options = request.args.getlist('include')
+    if not include_options:
+        # 如果沒有指定，默認下載所有內容
+        include_options = ['csv', 'sql', 'images', 'descriptions', 'readme']
+    
     # 創建ZIP檔案
     memory_file = io.BytesIO()
     
@@ -691,84 +700,292 @@ def download_results(process_id):
     if not pdf_page_keys and process_id not in image_storage:
         return "處理結果不存在", 404
     
-    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+    # 收集所有工作資訊
+    all_jobs = []
+    all_images = []
+    debug_images = []
+    
+    if pdf_page_keys:
         # PDF情況
-        if pdf_page_keys:
-            pdf_page_keys.sort(key=lambda x: int(x.split('_page')[-1]))
+        pdf_page_keys.sort(key=lambda x: int(x.split('_page')[-1]))
+        
+        for page_key in pdf_page_keys:
+            page_num = page_key.split('_page')[-1]
             
-            for page_key in pdf_page_keys:
-                page_num = page_key.split('_page')[-1]
-                
-                for filename, image_data in image_storage[page_key].items():
-                    # 添加圖片 - 移除頁碼前綴
-                    arcname = filename  # 直接使用檔名，不加頁碼前綴
-                    zf.writestr(arcname, image_data['binary'])
+            for filename, image_data in image_storage[page_key].items():
+                if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                    # 處理步驟圖片
+                    debug_images.append({
+                        'filename': filename,
+                        'page': page_num,
+                        'data': image_data
+                    })
+                else:
+                    # 工作區塊圖片
+                    description = get_image_description(page_key, filename)
+                    all_images.append({
+                        'filename': filename,
+                        'page': page_num,
+                        'data': image_data,
+                        'description': description
+                    })
                     
-                    # 添加描述（如果不是偵錯圖片）
-                    if not any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
-                        description = get_image_description(page_key, filename)
-                        desc_text_name = f"{os.path.splitext(filename)[0]}_description.txt"  # 移除頁碼前綴
-                        
-                        # 將工作列表轉換為可讀的表格格式
-                        if isinstance(description, list) and description:
-                            desc_text = "工作資訊分析結果\n" + "="*50 + "\n\n"
-                            for i, job in enumerate(description, 1):
-                                if len(description) > 1:
-                                    desc_text += f"工作 {i}\n" + "-"*20 + "\n"
-                                desc_text += f"工作：{job.get('工作', '無資訊')}\n"
-                                desc_text += f"行業：{job.get('行業', '無資訊')}\n"
-                                desc_text += f"時間：{job.get('時間', '無資訊')}\n"
-                                desc_text += f"薪資：{job.get('薪資', '無資訊')}\n"
-                                desc_text += f"地點：{job.get('地點', '無資訊')}\n"
-                                desc_text += f"聯絡方式：{job.get('聯絡方式', '無資訊')}\n"
-                                if job.get('其他'):
-                                    desc_text += f"其他：{job.get('其他')}\n"
-                                if i < len(description):
-                                    desc_text += "\n" + "="*30 + "\n\n"
-                        else:
-                            desc_text = str(description)
-                        
-                        zf.writestr(desc_text_name, desc_text)
-        else:
-            # 單一圖像情況
-            for filename, image_data in image_storage[process_id].items():
-                # 添加圖片
-                zf.writestr(filename, image_data['binary'])
+                    # 收集工作資訊
+                    if isinstance(description, list):
+                        for i, job in enumerate(description):
+                            if is_valid_job(job):
+                                job_info = job.copy()
+                                job_info['來源圖片'] = filename
+                                job_info['頁碼'] = page_num
+                                job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
+                                if len([j for j in description if is_valid_job(j)]) > 1:
+                                    valid_jobs = [j for j in description if is_valid_job(j)]
+                                    job_index = valid_jobs.index(job) + 1
+                                    job_info['工作編號'] = f"工作 {job_index}"
+                                else:
+                                    job_info['工作編號'] = ""
+                                all_jobs.append(job_info)
+    else:
+        # 單一圖像情況
+        for filename, image_data in image_storage[process_id].items():
+            if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                # 處理步驟圖片
+                debug_images.append({
+                    'filename': filename,
+                    'page': '1',
+                    'data': image_data
+                })
+            else:
+                # 工作區塊圖片
+                description = get_image_description(process_id, filename)
+                all_images.append({
+                    'filename': filename,
+                    'page': '1',
+                    'data': image_data,
+                    'description': description
+                })
                 
-                # 添加描述（如果不是偵錯圖片）
-                if not any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
-                    description = get_image_description(process_id, filename)
-                    desc_text_name = f"{os.path.splitext(filename)[0]}_description.txt"
+                # 收集工作資訊
+                if isinstance(description, list):
+                    for i, job in enumerate(description):
+                        if is_valid_job(job):
+                            job_info = job.copy()
+                            job_info['來源圖片'] = filename
+                            job_info['頁碼'] = '1'
+                            job_info['圖片編號'] = filename.split('.')[0]
+                            if len([j for j in description if is_valid_job(j)]) > 1:
+                                valid_jobs = [j for j in description if is_valid_job(j)]
+                                job_index = valid_jobs.index(job) + 1
+                                job_info['工作編號'] = f"工作 {job_index}"
+                            else:
+                                job_info['工作編號'] = ""
+                            all_jobs.append(job_info)
+    
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        
+        # 1. CSV 工作資料表
+        if 'csv' in include_options and all_jobs:
+            csv_content = io.StringIO()
+            fieldnames = ['工作', '行業', '時間', '薪資', '地點', '聯絡方式', '其他', '來源圖片', '頁碼', '工作編號']
+            writer = csv.DictWriter(csv_content, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for job in all_jobs:
+                # 清理資料，確保沒有None值
+                clean_job = {}
+                for field in fieldnames:
+                    value = job.get(field, '')
+                    clean_job[field] = value if value else ''
+                writer.writerow(clean_job)
+            
+            zf.writestr('工作資料表.csv', csv_content.getvalue().encode('utf-8-sig'))
+        
+        # 2. SQL 資料庫檔案
+        if 'sql' in include_options and all_jobs:
+            sql_content = """-- 報紙工作廣告提取結果資料庫
+-- 生成時間: {datetime}
+
+-- 建立工作資訊表
+CREATE TABLE IF NOT EXISTS jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_title TEXT,
+    industry TEXT,
+    work_time TEXT,
+    salary TEXT,
+    location TEXT,
+    contact TEXT,
+    other_info TEXT,
+    source_image TEXT,
+    page_number TEXT,
+    job_number TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 插入工作資料
+""".format(datetime=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            
+            for job in all_jobs:
+                # SQL注入防護：轉義單引號
+                def escape_sql(value):
+                    if value is None:
+                        return 'NULL'
+                    return "'" + str(value).replace("'", "''") + "'"
+                
+                sql_content += f"""INSERT INTO jobs (job_title, industry, work_time, salary, location, contact, other_info, source_image, page_number, job_number) 
+VALUES ({escape_sql(job.get('工作', ''))}, {escape_sql(job.get('行業', ''))}, {escape_sql(job.get('時間', ''))}, {escape_sql(job.get('薪資', ''))}, {escape_sql(job.get('地點', ''))}, {escape_sql(job.get('聯絡方式', ''))}, {escape_sql(job.get('其他', ''))}, {escape_sql(job.get('來源圖片', ''))}, {escape_sql(job.get('頁碼', ''))}, {escape_sql(job.get('工作編號', ''))});
+"""
+            
+            sql_content += f"\n-- 總計插入 {len(all_jobs)} 筆工作資料\n"
+            zf.writestr('工作資料庫.sql', sql_content.encode('utf-8'))
+        
+        # 3. 工作區塊圖片
+        if 'images' in include_options:
+            for image in all_images:
+                arcname = f"images/{image['filename']}"
+                zf.writestr(arcname, image['data']['binary'])
+        
+        # 4. AI 分析描述
+        if 'descriptions' in include_options:
+            for image in all_images:
+                if image['description']:
+                    desc_filename = f"descriptions/{os.path.splitext(image['filename'])[0]}_description.txt"
                     
                     # 將工作列表轉換為可讀的表格格式
-                    if isinstance(description, list) and description:
-                        desc_text = "工作資訊分析結果\n" + "="*50 + "\n\n"
-                        for i, job in enumerate(description, 1):
-                            if len(description) > 1:
-                                desc_text += f"工作 {i}\n" + "-"*20 + "\n"
-                            desc_text += f"工作：{job.get('工作', '無資訊')}\n"
-                            desc_text += f"行業：{job.get('行業', '無資訊')}\n"
-                            desc_text += f"時間：{job.get('時間', '無資訊')}\n"
-                            desc_text += f"薪資：{job.get('薪資', '無資訊')}\n"
-                            desc_text += f"地點：{job.get('地點', '無資訊')}\n"
-                            desc_text += f"聯絡方式：{job.get('聯絡方式', '無資訊')}\n"
-                            if job.get('其他'):
-                                desc_text += f"其他：{job.get('其他')}\n"
-                            if i < len(description):
-                                desc_text += "\n" + "="*30 + "\n\n"
+                    if isinstance(image['description'], list) and image['description']:
+                        desc_text = f"工作資訊分析結果 - {image['filename']}\n" + "="*60 + "\n\n"
+                        for i, job in enumerate(image['description'], 1):
+                            if is_valid_job(job):
+                                if len([j for j in image['description'] if is_valid_job(j)]) > 1:
+                                    desc_text += f"工作 {i}\n" + "-"*30 + "\n"
+                                desc_text += f"工作職位：{job.get('工作', '無資訊')}\n"
+                                desc_text += f"所屬行業：{job.get('行業', '無資訊')}\n"
+                                desc_text += f"工作時間：{job.get('時間', '無資訊')}\n"
+                                desc_text += f"薪資待遇：{job.get('薪資', '無資訊')}\n"
+                                desc_text += f"工作地點：{job.get('地點', '無資訊')}\n"
+                                desc_text += f"聯絡方式：{job.get('聯絡方式', '無資訊')}\n"
+                                if job.get('其他'):
+                                    desc_text += f"其他資訊：{job.get('其他')}\n"
+                                desc_text += f"來源圖片：{image['filename']}\n"
+                                if image['page'] != '1':
+                                    desc_text += f"頁碼：第 {image['page']} 頁\n"
+                                if i < len([j for j in image['description'] if is_valid_job(j)]):
+                                    desc_text += "\n" + "="*40 + "\n\n"
                     else:
-                        desc_text = str(description)
+                        desc_text = f"圖片：{image['filename']}\n描述：{str(image['description'])}"
                     
-                    zf.writestr(desc_text_name, desc_text)
+                    zf.writestr(desc_filename, desc_text.encode('utf-8'))
+        
+        # 5. 處理步驟圖片
+        if 'processing_steps' in include_options:
+            for debug_img in debug_images:
+                arcname = f"processing_steps/{debug_img['filename']}"
+                zf.writestr(arcname, debug_img['data']['binary'])
+        
+        # 6. 說明文件
+        if 'readme' in include_options:
+            readme_content = f"""報紙工作廣告區塊提取結果
+================================
+
+生成時間：{datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}
+處理ID：{process_id}
+
+統計資訊
+--------
+• 總工作崗位數：{len(all_jobs)}
+• 有效圖片數：{len(all_images)}
+• 處理步驟圖片數：{len(debug_images)}
+• 是否為PDF：{'是' if pdf_page_keys else '否'}
+
+檔案結構說明
+------------
+"""
+            
+            if 'csv' in include_options:
+                readme_content += "• 工作資料表.csv - 所有工作資訊的結構化表格，可用Excel開啟\n"
+            
+            if 'sql' in include_options:
+                readme_content += "• 工作資料庫.sql - 完整的SQL資料庫建表和插入語句\n"
+            
+            if 'images' in include_options:
+                readme_content += "• images/ - 所有識別出的工作廣告區塊圖片\n"
+            
+            if 'descriptions' in include_options:
+                readme_content += "• descriptions/ - 每張圖片的詳細AI分析描述文字檔\n"
+            
+            if 'processing_steps' in include_options:
+                readme_content += "• processing_steps/ - 圖像處理的各個步驟圖片\n"
+                readme_content += "  - *_original.jpg: 原始圖像\n"
+                readme_content += "  - *_mask_unprocessed.jpg: 初始區塊檢測\n"
+                readme_content += "  - *_mask_processed.jpg: 區塊優化處理\n"
+                readme_content += "  - *_final_combined.jpg: 最終結果展示\n"
+            
+            readme_content += f"""
+工作資訊欄位說明
+--------------
+• 工作：工作職位或職業名稱
+• 行業：所屬行業分類（共19個標準分類）
+• 時間：工作時間或營業時間
+• 薪資：薪資待遇或收入
+• 地點：工作地點或地址
+• 聯絡方式：電話、地址或其他聯絡資訊
+• 其他：其他相關資訊或備註
+
+技術資訊
+--------
+• AI模型：Google Gemini 2.0 Flash Lite
+• 圖像處理：OpenCV + 自定義區塊分割算法
+• 方向檢測：四方向評分系統
+• 資料格式：UTF-8編碼
+
+使用說明
+--------
+1. CSV檔案可直接用Excel或其他試算表軟體開啟
+2. SQL檔案可匯入SQLite、MySQL等資料庫系統
+3. 圖片檔案按原始檔名組織，便於對照
+4. 描述檔案提供詳細的文字分析結果
+
+注意事項
+--------
+• 所有工作資訊由AI自動識別，建議人工核實
+• 圖片品質會影響識別準確度
+• 部分欄位可能為空，表示該資訊未在圖片中識別出
+
+版權聲明
+--------
+本工具由報紙工作廣告區塊提取系統生成
+僅供學習和研究使用
+"""
+            
+            zf.writestr('README.txt', readme_content.encode('utf-8'))
     
     # 將指針移到檔案開頭
     memory_file.seek(0)
+    
+    # 根據選擇的內容生成檔名
+    content_types = []
+    if 'csv' in include_options:
+        content_types.append('CSV')
+    if 'sql' in include_options:
+        content_types.append('SQL')
+    if 'images' in include_options:
+        content_types.append('圖片')
+    if 'descriptions' in include_options:
+        content_types.append('描述')
+    if 'processing_steps' in include_options:
+        content_types.append('步驟')
+    
+    if len(content_types) == 5:  # 包含所有內容
+        filename_suffix = '完整'
+    elif len(content_types) == 1:
+        filename_suffix = content_types[0]
+    else:
+        filename_suffix = '+'.join(content_types)
     
     return send_file(
         memory_file,
         mimetype='application/zip',
         as_attachment=True,
-        download_name=f'newspaper_blocks_{process_id}.zip'
+        download_name=f'報紙工作提取_{filename_suffix}_{process_id[:8]}.zip'
     )
 
 # 定期清理功能

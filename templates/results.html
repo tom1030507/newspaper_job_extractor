@@ -138,7 +138,9 @@
                     <h1>提取結果</h1>
                     <div>
                         <a href="/" class="btn btn-secondary me-2">返回首頁</a>
-                        <a href="/download/{{ process_id }}" class="btn btn-primary">下載全部結果</a>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#downloadModal">
+                            <i class="bi bi-download"></i> 下載結果
+                        </button>
                     </div>
                 </div>
                 <p class="mt-3 text-muted">找到 {{ all_jobs|length }} 個工作崗位</p>
@@ -493,6 +495,97 @@
         </div>
     </div>
     
+    <!-- 下載選項模態框 -->
+    <div class="modal fade" id="downloadModal" tabindex="-1" aria-labelledby="downloadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="downloadModalLabel">
+                        <i class="bi bi-download"></i> 選擇下載內容
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="downloadForm" action="/download/{{ process_id }}" method="get">
+                        <div class="mb-3">
+                            <h6 class="mb-3">請選擇要下載的內容：</h6>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="csv" id="includeCsv" name="include" checked>
+                                <label class="form-check-label" for="includeCsv">
+                                    <i class="bi bi-file-earmark-spreadsheet text-success"></i>
+                                    <strong>CSV 工作資料表</strong>
+                                    <small class="text-muted d-block">包含所有工作資訊的結構化表格，可用 Excel 開啟</small>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="sql" id="includeSql" name="include" checked>
+                                <label class="form-check-label" for="includeSql">
+                                    <i class="bi bi-database text-primary"></i>
+                                    <strong>SQL 資料庫檔案</strong>
+                                    <small class="text-muted d-block">包含建表語句和資料插入語句</small>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="images" id="includeImages" name="include" checked>
+                                <label class="form-check-label" for="includeImages">
+                                    <i class="bi bi-image text-warning"></i>
+                                    <strong>工作區塊圖片</strong>
+                                    <small class="text-muted d-block">所有識別出的工作廣告區塊圖片</small>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="descriptions" id="includeDescriptions" name="include" checked>
+                                <label class="form-check-label" for="includeDescriptions">
+                                    <i class="bi bi-file-text text-info"></i>
+                                    <strong>AI 分析描述</strong>
+                                    <small class="text-muted d-block">每張圖片的詳細工作資訊分析文字檔</small>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="processing_steps" id="includeProcessingSteps" name="include">
+                                <label class="form-check-label" for="includeProcessingSteps">
+                                    <i class="bi bi-gear text-secondary"></i>
+                                    <strong>處理步驟圖片</strong>
+                                    <small class="text-muted d-block">圖像處理的各個步驟圖片（原始、檢測、優化、結果）</small>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" value="readme" id="includeReadme" name="include" checked>
+                                <label class="form-check-label" for="includeReadme">
+                                    <i class="bi bi-info-circle text-dark"></i>
+                                    <strong>說明文件</strong>
+                                    <small class="text-muted d-block">包含檔案結構說明和統計資訊</small>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <small>
+                                <strong>統計資訊：</strong>
+                                共找到 {{ all_jobs|length }} 個工作崗位，
+                                {{ image_files|length }} 張有效圖片
+                                {% if debug_files %}, {{ debug_files|length }} 張處理步驟圖片{% endif %}
+                            </small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="downloadSelected()">
+                        <i class="bi bi-download"></i> 開始下載
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 圖片預覽模態框 -->
     <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered">
@@ -690,6 +783,29 @@
             // 設置圖像
             const stepModalImage = document.getElementById('stepModalImage');
             stepModalImage.src = `data:image/${format};base64,${base64Data}`;
+        }
+        
+        function downloadSelected() {
+            // 獲取選中的選項
+            const checkboxes = document.querySelectorAll('input[name="include"]:checked');
+            const selectedOptions = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (selectedOptions.length === 0) {
+                alert('請至少選擇一個下載項目！');
+                return;
+            }
+            
+            // 構建下載URL
+            const processId = '{{ process_id }}';
+            const params = selectedOptions.map(option => `include=${option}`).join('&');
+            const downloadUrl = `/download/${processId}?${params}`;
+            
+            // 關閉模態框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('downloadModal'));
+            modal.hide();
+            
+            // 開始下載
+            window.location.href = downloadUrl;
         }
     </script>
 </body>
