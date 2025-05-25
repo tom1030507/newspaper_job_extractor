@@ -700,7 +700,7 @@ def download_results(process_id):
     if not pdf_page_keys and process_id not in image_storage:
         return "處理結果不存在", 404
     
-    # 收集所有工作資訊
+    # 收集所有工作資訊 - 使用與results函數相同的過濾邏輯
     all_jobs = []
     all_images = []
     debug_images = []
@@ -721,30 +721,36 @@ def download_results(process_id):
                         'data': image_data
                     })
                 else:
-                    # 工作區塊圖片
+                    # 獲取圖片描述
                     description = get_image_description(page_key, filename)
-                    all_images.append({
-                        'filename': filename,
-                        'page': page_num,
-                        'data': image_data,
-                        'description': description
-                    })
                     
-                    # 收集工作資訊
-                    if isinstance(description, list):
-                        for i, job in enumerate(description):
-                            if is_valid_job(job):
-                                job_info = job.copy()
-                                job_info['來源圖片'] = filename
-                                job_info['頁碼'] = page_num
-                                job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
-                                if len([j for j in description if is_valid_job(j)]) > 1:
-                                    valid_jobs = [j for j in description if is_valid_job(j)]
-                                    job_index = valid_jobs.index(job) + 1
-                                    job_info['工作編號'] = f"工作 {job_index}"
-                                else:
-                                    job_info['工作編號'] = ""
-                                all_jobs.append(job_info)
+                    # 檢查是否有有效的工作資訊 - 只有有效工作的圖片才會被包含
+                    has_valid_jobs = any(is_valid_job(job) for job in description)
+                    
+                    if has_valid_jobs:
+                        # 只包含在頁面上顯示的圖片
+                        all_images.append({
+                            'filename': filename,
+                            'page': page_num,
+                            'data': image_data,
+                            'description': description
+                        })
+                        
+                        # 收集工作資訊 - 只包含有效的工作
+                        if isinstance(description, list):
+                            for i, job in enumerate(description):
+                                if is_valid_job(job):
+                                    job_info = job.copy()
+                                    job_info['來源圖片'] = filename
+                                    job_info['頁碼'] = page_num
+                                    job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
+                                    if len([j for j in description if is_valid_job(j)]) > 1:
+                                        valid_jobs = [j for j in description if is_valid_job(j)]
+                                        job_index = valid_jobs.index(job) + 1
+                                        job_info['工作編號'] = f"工作 {job_index}"
+                                    else:
+                                        job_info['工作編號'] = ""
+                                    all_jobs.append(job_info)
     else:
         # 單一圖像情況
         for filename, image_data in image_storage[process_id].items():
@@ -756,30 +762,45 @@ def download_results(process_id):
                     'data': image_data
                 })
             else:
-                # 工作區塊圖片
+                # 獲取圖片描述
                 description = get_image_description(process_id, filename)
-                all_images.append({
-                    'filename': filename,
-                    'page': '1',
-                    'data': image_data,
-                    'description': description
-                })
                 
-                # 收集工作資訊
-                if isinstance(description, list):
-                    for i, job in enumerate(description):
-                        if is_valid_job(job):
-                            job_info = job.copy()
-                            job_info['來源圖片'] = filename
-                            job_info['頁碼'] = '1'
-                            job_info['圖片編號'] = filename.split('.')[0]
-                            if len([j for j in description if is_valid_job(j)]) > 1:
-                                valid_jobs = [j for j in description if is_valid_job(j)]
-                                job_index = valid_jobs.index(job) + 1
-                                job_info['工作編號'] = f"工作 {job_index}"
-                            else:
-                                job_info['工作編號'] = ""
-                            all_jobs.append(job_info)
+                # 檢查是否有有效的工作資訊 - 只有有效工作的圖片才會被包含
+                has_valid_jobs = any(is_valid_job(job) for job in description)
+                
+                if has_valid_jobs:
+                    # 只包含在頁面上顯示的圖片
+                    all_images.append({
+                        'filename': filename,
+                        'page': '1',
+                        'data': image_data,
+                        'description': description
+                    })
+                    
+                    # 收集工作資訊 - 只包含有效的工作
+                    if isinstance(description, list):
+                        for i, job in enumerate(description):
+                            if is_valid_job(job):
+                                job_info = job.copy()
+                                job_info['來源圖片'] = filename
+                                job_info['頁碼'] = '1'
+                                job_info['圖片編號'] = filename.split('.')[0]
+                                if len([j for j in description if is_valid_job(j)]) > 1:
+                                    valid_jobs = [j for j in description if is_valid_job(j)]
+                                    job_index = valid_jobs.index(job) + 1
+                                    job_info['工作編號'] = f"工作 {job_index}"
+                                else:
+                                    job_info['工作編號'] = ""
+                                all_jobs.append(job_info)
+    
+    # 對圖片按工作數量從小到大排序，與頁面顯示順序一致
+    def count_valid_jobs_in_image(image):
+        """計算圖片中有效工作的數量"""
+        if not image.get('description'):
+            return 0
+        return len([job for job in image['description'] if is_valid_job(job)])
+    
+    all_images.sort(key=count_valid_jobs_in_image)
     
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
         
@@ -850,12 +871,15 @@ VALUES ({escape_sql(job.get('工作', ''))}, {escape_sql(job.get('行業', ''))}
                 if image['description']:
                     desc_filename = f"descriptions/{os.path.splitext(image['filename'])[0]}_description.txt"
                     
-                    # 將工作列表轉換為可讀的表格格式
+                    # 將工作列表轉換為可讀的表格格式 - 只包含有效工作
                     if isinstance(image['description'], list) and image['description']:
-                        desc_text = f"工作資訊分析結果 - {image['filename']}\n" + "="*60 + "\n\n"
-                        for i, job in enumerate(image['description'], 1):
-                            if is_valid_job(job):
-                                if len([j for j in image['description'] if is_valid_job(j)]) > 1:
+                        # 過濾出有效工作
+                        valid_jobs = [job for job in image['description'] if is_valid_job(job)]
+                        
+                        if valid_jobs:  # 只有當有有效工作時才生成描述檔案
+                            desc_text = f"工作資訊分析結果 - {image['filename']}\n" + "="*60 + "\n\n"
+                            for i, job in enumerate(valid_jobs, 1):
+                                if len(valid_jobs) > 1:
                                     desc_text += f"工作 {i}\n" + "-"*30 + "\n"
                                 desc_text += f"工作職位：{job.get('工作', '無資訊')}\n"
                                 desc_text += f"所屬行業：{job.get('行業', '無資訊')}\n"
@@ -868,12 +892,10 @@ VALUES ({escape_sql(job.get('工作', ''))}, {escape_sql(job.get('行業', ''))}
                                 desc_text += f"來源圖片：{image['filename']}\n"
                                 if image['page'] != '1':
                                     desc_text += f"頁碼：第 {image['page']} 頁\n"
-                                if i < len([j for j in image['description'] if is_valid_job(j)]):
+                                if i < len(valid_jobs):
                                     desc_text += "\n" + "="*40 + "\n\n"
-                    else:
-                        desc_text = f"圖片：{image['filename']}\n描述：{str(image['description'])}"
-                    
-                    zf.writestr(desc_filename, desc_text.encode('utf-8'))
+                            
+                            zf.writestr(desc_filename, desc_text.encode('utf-8'))
         
         # 5. 處理步驟圖片
         if 'processing_steps' in include_options:
