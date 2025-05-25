@@ -46,7 +46,7 @@ def check_and_get_rotation_direction(image):
     
     if not api_key:
         print("未設置Gemini API密鑰，跳過方向檢查")
-        return "無需旋轉"
+        return "正確"
     
     try:
         # 配置API密鑰，並設定temperature、top_k、top_p讓生成結果固定
@@ -60,28 +60,81 @@ def check_and_get_rotation_direction(image):
             }
         )
         
-        # 將OpenCV圖片轉換為PIL格式
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        pil_image = Image.fromarray(image_rgb)
+        # 生成四個方向的圖片
+        orientations = {
+            "正確": image,
+            "順時針90度": cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE),
+            "180度": cv2.rotate(image, cv2.ROTATE_180),
+            "逆時針90度": cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        }
         
-        # 調用Gemini API檢查方向
-        prompt = """你現在是一個專門判斷圖片方向的AI助手。請根據這張圖片中文字的閱讀方向，判斷圖片是否需要旋轉，讓文字成為正常可讀的狀態。
+        print("開始分析四個方向的圖片...")
+        scores = {}
+        
+        # 對每個方向進行評分
+        for orientation_name, rotated_image in orientations.items():
+            try:
+                # 將OpenCV圖片轉換為PIL格式
+                image_rgb = cv2.cvtColor(rotated_image, cv2.COLOR_BGR2RGB)
+                pil_image = Image.fromarray(image_rgb)
+                
+                # 調用Gemini API進行評分
+                prompt = f"""你現在是一個專門判斷圖片方向的AI助手。請仔細觀察這張圖片中的文字閱讀方向。
 
-請只回覆以下其中一個選項（只回覆選項本身，不要加任何說明）：
-- 正確
-- 逆時針90度
-- 順時針90度
-- 180度
+請給這張圖片的文字可讀性打分，分數範圍是1到10（可以包含小數點，例如7.5）：
+- 10分：文字完全正確，可以正常閱讀
+- 7-9分：文字基本正確，稍有傾斜但可讀
+- 4-6分：文字有明顯問題，但還能勉強辨識
+- 1-3分：文字完全顛倒或側向，無法正常閱讀
 
-如果圖片已經是正常閱讀方向，請回覆「正確」；如果需要旋轉，請回覆對應的選項。"""
+請只回覆一個數字分數（例如：8.5），不要加任何其他說明文字。"""
+                
+                response = MODEL.generate_content([prompt, pil_image])
+                score_text = response.text.strip()
+                
+                # 嘗試解析分數
+                try:
+                    score = float(score_text)
+                    # 確保分數在1-10範圍內
+                    score = max(1.0, min(10.0, score))
+                    scores[orientation_name] = score
+                    print(f"{orientation_name}: {score}分")
+                except ValueError:
+                    print(f"無法解析{orientation_name}的分數: {score_text}")
+                    scores[orientation_name] = 1.0
+                    
+            except Exception as e:
+                print(f"評估{orientation_name}時出錯: {str(e)}")
+                scores[orientation_name] = 1.0
         
-        response = MODEL.generate_content([prompt, pil_image])
-        orientation_result = response.text.strip()
+        # 找出得分最高的方向
+        if scores:
+            best_orientation = max(scores, key=scores.get)
+            best_score = scores[best_orientation]
+            
+            print(f"各方向得分: {scores}")
+            print(f"最佳方向: {best_orientation} (得分: {best_score})")
+            
+            # 如果最高分低於6分，可能圖片質量有問題，返回原始方向
+            if best_score < 6.0:
+                print("所有方向得分都較低，可能圖片質量有問題，保持原始方向")
+                return "正確"
+            
+            # 根據最佳方向返回需要的旋轉操作
+            if best_orientation == "正確":
+                return "正確"
+            elif best_orientation == "順時針90度":
+                return "順時針90度"
+            elif best_orientation == "180度":
+                return "180度"
+            elif best_orientation == "逆時針90度":
+                return "逆時針90度"
         
-        return orientation_result
+        return "正確"
         
     except Exception as e:
-        return "無需旋轉"
+        print(f"圖片方向檢查出錯: {str(e)}")
+        return "正確"
 
 def apply_rotation_to_image(image, rotation_direction):
     """根據旋轉方向旋轉圖片"""
@@ -94,6 +147,8 @@ def apply_rotation_to_image(image, rotation_direction):
     elif rotation_direction == "正確":
         return image
     else:
+        # 如果是未知的方向，保持原圖
+        print(f"未知的旋轉方向: {rotation_direction}，保持原圖")
         return image
 
 def check_and_correct_image_orientation(image):
@@ -152,8 +207,10 @@ def process_image_data(image, process_id, image_name):
                     print(f"無法讀取處理後的圖片: {filename}")
         
         print(f"處理完成，共處理了 {len(processed_files)} 張圖片")
-        if rotation_direction != "正確" and rotation_direction != "無需旋轉":
+        if rotation_direction != "正確":
             print(f"所有圖片已根據檢測結果進行旋轉: {rotation_direction}")
+        else:
+            print("圖片方向正確，無需旋轉")
         
         return processed_files
         
