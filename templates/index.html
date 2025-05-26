@@ -4,87 +4,353 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>報紙工作廣告區塊提取工具</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <link rel="stylesheet" href="/static/css/index.css">
 </head>
 <body>
-    <div class="container">
-        <div class="upload-form">
-            <h1 class="text-center">報紙工作廣告區塊提取工具</h1>
-            
-            <!-- 顯示消息 -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    <!-- 導航欄 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">
+                <i class="bi bi-newspaper me-2"></i>報紙工作廣告提取工具
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text">
+                    <i class="bi bi-robot me-1"></i>AI 驅動的智能分析
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要內容 -->
+    <div class="container mt-4">
+        <!-- 頁面標題區域 -->
+        <div class="hero-section text-center mb-5 animate__animated animate__fadeInDown">
+            <h1 class="display-4 fw-bold text-primary mb-3">
+                <i class="bi bi-magic me-3"></i>智能報紙工作廣告提取
+            </h1>
+            <p class="lead text-muted mb-4">
+                使用先進的 AI 技術，自動識別和提取報紙中的工作廣告信息，讓求職變得更簡單
+            </p>
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="feature-badges">
+                        <span class="badge bg-success me-2 mb-2"><i class="bi bi-check-circle me-1"></i>自動方向校正</span>
+                        <span class="badge bg-info me-2 mb-2"><i class="bi bi-eye me-1"></i>智能區塊識別</span>
+                        <span class="badge bg-warning text-dark me-2 mb-2"><i class="bi bi-translate me-1"></i>AI 內容分析</span>
+                        <span class="badge bg-primary mb-2"><i class="bi bi-download me-1"></i>多格式導出</span>
+                    </div>
                 </div>
-                {% endfor %}
-            {% endif %}
-            {% endwith %}
-            
-            <!-- Gemini API密鑰設置 -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">設置Gemini API密鑰</h5>
-                    <p class="card-text">需要Google Gemini API密鑰來獲取圖像的文字說明。您可以在 <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> 獲取API密鑰。</p>
-                    <p class="card-text"><span class="badge bg-primary">使用模型: {{ model_name }}</span></p>
-                    <form action="/set_api_key" method="post">
-                        <div class="input-group mb-3">
-                            <input type="password" class="form-control" name="api_key" placeholder="輸入您的Gemini API密鑰" value="{{ api_key }}" required>
-                            <button class="btn btn-outline-primary" type="submit">儲存</button>
+            </div>
+        </div>
+
+        <!-- 消息提示 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show animate__animated animate__fadeInUp" role="alert">
+                {% if category == 'success' %}
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                {% elif category == 'danger' %}
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                {% elif category == 'warning' %}
+                    <i class="bi bi-exclamation-circle-fill me-2"></i>
+                {% else %}
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                {% endif %}
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="row">
+            <!-- 左側：設置和上傳 -->
+            <div class="col-lg-8">
+                <!-- API 密鑰設置 -->
+                <div class="card shadow-sm mb-4 animate__animated animate__fadeInLeft">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-key-fill me-2"></i>Gemini API 設置
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <p class="card-text mb-3">
+                                    需要 Google Gemini API 密鑰來進行智能圖像分析。
+                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-decoration-none">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>獲取 API 密鑰
+                                    </a>
+                                </p>
+                                <div class="api-status mb-3">
+                                    {% if api_key %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>API 密鑰已設置</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>需要設置 API 密鑰</span>
+                                    {% endif %}
+                                    <span class="badge bg-primary ms-2">模型: {{ model_name }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <i class="bi bi-robot display-4 text-primary"></i>
+                            </div>
                         </div>
-                        <div class="form-text">API密鑰只會存儲在您的瀏覽器會話中，不會被保存到伺服器。</div>
-                    </form>
+                        
+                        <form action="/set_api_key" method="post" class="api-form">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-key"></i></span>
+                                <input type="password" class="form-control" name="api_key" 
+                                       placeholder="輸入您的 Gemini API 密鑰" value="{{ api_key }}" required>
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="bi bi-check-lg me-1"></i>保存
+                                </button>
+                            </div>
+                            <div class="form-text mt-2">
+                                <i class="bi bi-shield-check me-1"></i>
+                                API 密鑰僅在您的瀏覽器會話中保存，確保安全性
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 文件上傳 -->
+                <div class="card shadow-sm mb-4 animate__animated animate__fadeInLeft animate__delay-1s">
+                    <div class="card-header bg-gradient-success text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-cloud-upload-fill me-2"></i>上傳文件
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="upload-form" action="/upload" method="post" enctype="multipart/form-data">
+                            <div class="upload-area" id="upload-area">
+                                <div class="upload-content text-center">
+                                    <i class="bi bi-cloud-arrow-up display-1 text-muted mb-3"></i>
+                                    <h5 class="mb-3">拖拽文件到此處或點擊選擇</h5>
+                                    <p class="text-muted mb-3">支持 JPG、PNG、PDF 格式，最多 10 個文件</p>
+                                    <input type="file" class="form-control d-none" id="files" name="files" 
+                                           accept=".jpg,.jpeg,.png,.pdf" multiple required>
+                                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('files').click()">
+                                        <i class="bi bi-folder2-open me-2"></i>選擇文件
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 文件列表 -->
+                            <div id="file-list" class="mt-3"></div>
+                            
+                            <!-- 處理選項 -->
+                            <div class="processing-options mt-4 d-none" id="processing-options">
+                                <h6 class="mb-3"><i class="bi bi-gear me-2"></i>處理選項</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="auto-rotate" checked>
+                                            <label class="form-check-label" for="auto-rotate">
+                                                <i class="bi bi-arrow-clockwise me-1"></i>自動校正方向
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="parallel-process" checked>
+                                            <label class="form-check-label" for="parallel-process">
+                                                <i class="bi bi-lightning me-1"></i>並行處理加速
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-center mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg px-5" id="submit-btn" disabled>
+                                    <i class="bi bi-play-circle me-2"></i>開始分析
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
-            
-            <div class="features">
-                <h4>功能介紹</h4>
-                <ul>
-                    <li>自動檢查並糾正圖片方向（使用AI分析）</li>
-                    <li>處理報紙圖像和多頁PDF文件</li>
-                    <li>使用輪廓檢測算法提取個別工作廣告區塊</li>
-                    <li>應用智能過濾識別相關區塊</li>
-                    <li>處理嵌套內容區塊以避免重複</li>
-                    <li>檢測未填充區域以捕獲可能被主要檢測遺漏的內容</li>
-                    <li>使用Gemini AI分析工作資訊並結構化顯示</li>
-                    <li>自動生成並顯示所有處理步驟的中間圖像，便於理解提取過程</li>
-                </ul>
-            </div>
-            
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">上傳檔案</h5>
-                    <form id="upload-form" action="/upload" method="post" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label for="files" class="form-label">選擇報紙圖像或PDF文件</label>
-                            <input type="file" class="form-control" id="files" name="files" accept=".jpg,.jpeg,.png,.pdf" multiple required>
-                            <div class="form-text">支持的檔案格式：JPG, JPEG, PNG, PDF。可一次選取多個檔案。</div>
-                            <div id="file-list" class="mt-2"></div>
+
+            <!-- 右側：功能說明 -->
+            <div class="col-lg-4">
+                <!-- 功能介紹 -->
+                <div class="card shadow-sm mb-4 animate__animated animate__fadeInRight">
+                    <div class="card-header bg-gradient-info text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-lightbulb-fill me-2"></i>功能特色
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="feature-list">
+                            <div class="feature-item mb-3">
+                                <div class="d-flex">
+                                    <div class="feature-icon">
+                                        <i class="bi bi-arrow-clockwise text-success"></i>
+                                    </div>
+                                    <div class="feature-content">
+                                        <h6 class="mb-1">智能方向校正</h6>
+                                        <small class="text-muted">AI 自動檢測並校正圖片方向</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="feature-item mb-3">
+                                <div class="d-flex">
+                                    <div class="feature-icon">
+                                        <i class="bi bi-bounding-box text-primary"></i>
+                                    </div>
+                                    <div class="feature-content">
+                                        <h6 class="mb-1">精準區塊識別</h6>
+                                        <small class="text-muted">先進算法提取工作廣告區塊</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="feature-item mb-3">
+                                <div class="d-flex">
+                                    <div class="feature-icon">
+                                        <i class="bi bi-cpu text-warning"></i>
+                                    </div>
+                                    <div class="feature-content">
+                                        <h6 class="mb-1">AI 內容分析</h6>
+                                        <small class="text-muted">結構化提取工作信息</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="feature-item mb-3">
+                                <div class="d-flex">
+                                    <div class="feature-icon">
+                                        <i class="bi bi-files text-info"></i>
+                                    </div>
+                                    <div class="feature-content">
+                                        <h6 class="mb-1">多格式支持</h6>
+                                        <small class="text-muted">支持 PDF 和多種圖像格式</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="feature-item">
+                                <div class="d-flex">
+                                    <div class="feature-icon">
+                                        <i class="bi bi-download text-danger"></i>
+                                    </div>
+                                    <div class="feature-content">
+                                        <h6 class="mb-1">多格式導出</h6>
+                                        <small class="text-muted">CSV、SQL、圖片打包下載</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <button type="submit" class="btn btn-primary">開始提取</button>
-                    </form>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="footer text-center">
-                <p>© 2025 報紙工作廣告區塊提取工具</p>
+
+                <!-- 使用統計 -->
+                <div class="card shadow-sm mb-4 animate__animated animate__fadeInRight animate__delay-1s">
+                    <div class="card-header bg-gradient-secondary text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-graph-up me-2"></i>使用說明
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="steps">
+                            <div class="step-item mb-3">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <strong>設置 API 密鑰</strong>
+                                    <br><small class="text-muted">獲取並輸入 Gemini API 密鑰</small>
+                                </div>
+                            </div>
+                            <div class="step-item mb-3">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <strong>上傳文件</strong>
+                                    <br><small class="text-muted">選擇報紙圖片或 PDF 文件</small>
+                                </div>
+                            </div>
+                            <div class="step-item mb-3">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <strong>AI 分析</strong>
+                                    <br><small class="text-muted">等待系統自動處理和分析</small>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <div class="step-number">4</div>
+                                <div class="step-content">
+                                    <strong>查看結果</strong>
+                                    <br><small class="text-muted">瀏覽和導出工作信息</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    
-    <!-- 加載中顯示 -->
-    <div id="loading-container">
-        <div class="loading-content">
-            <div class="spinner-border spinner text-primary" role="status"></div>
-            <h4>檔案正在處理中，請耐心等待...</h4>
-            <p class="text-muted">根據檔案大小和複雜度，處理可能需要幾秒鐘到幾分鐘不等</p>
+
+    <!-- 處理中對話框 -->
+    <div class="modal fade" id="processingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center p-5">
+                    <div class="processing-animation mb-4">
+                        <div class="spinner-border text-primary" style="width: 4rem; height: 4rem;" role="status">
+                            <span class="visually-hidden">處理中...</span>
+                        </div>
+                    </div>
+                    <h4 class="mb-3">AI 正在分析您的文件</h4>
+                    <p class="text-muted mb-4">
+                        系統正在執行圖像識別、區塊分割和內容分析<br>
+                        請耐心等待，處理時間取決於文件大小和複雜度
+                    </p>
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%" id="progress-bar"></div>
+                    </div>
+                    <div class="processing-steps">
+                        <div class="step-indicator" id="step-upload">
+                            <i class="bi bi-cloud-upload"></i> 文件上傳
+                        </div>
+                        <div class="step-indicator" id="step-process">
+                            <i class="bi bi-gear"></i> 圖像處理
+                        </div>
+                        <div class="step-indicator" id="step-analyze">
+                            <i class="bi bi-cpu"></i> AI 分析
+                        </div>
+                        <div class="step-indicator" id="step-complete">
+                            <i class="bi bi-check-circle"></i> 完成
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- 頁腳 -->
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="bi bi-newspaper me-2"></i>報紙工作廣告提取工具</h6>
+                    <p class="text-muted mb-0">AI 驅動的智能文檔分析解決方案</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-shield-check me-1"></i>
+                        安全 • 快速 • 準確
+                    </p>
+                    <small class="text-muted">© 2025 版權所有</small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/index.js"></script>
 </body>
 </html> 

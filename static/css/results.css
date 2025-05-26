@@ -1,147 +1,453 @@
+/* 現代化 Results 頁面樣式 */
 body {
-    padding: 40px 0;
-    background-color: #f8f9fa;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', sans-serif;
+    position: relative;
+    padding: 0;
+    margin: 0;
 }
 
-.results-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 30px;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.results-header {
-    margin-bottom: 30px;
-}
-
-.block-image {
-    margin-bottom: 20px;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    padding: 10px;
-    background-color: white;
-    transition: transform 0.2s;
-}
-
-.block-image:hover {
-    transform: scale(1.02);
-}
-
-.block-image img {
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
-    height: auto;
-    margin-bottom: 10px;
-    object-fit: contain;
-    max-height: 300px;
+    height: 100%;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" stroke-width="0.5" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>') repeat;
+    z-index: -1;
 }
 
-.footer {
-    margin-top: 30px;
-    color: #6c757d;
-    font-size: 14px;
+/* 導航欄樣式 */
+.navbar {
+    backdrop-filter: blur(15px);
+    background: rgba(13, 110, 253, 0.95) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
 }
 
-.debug-section {
-    margin-top: 50px;
-    padding-top: 20px;
-    border-top: 1px dashed #dee2e6;
-}
-
-.nav-tabs {
-    margin-bottom: 20px;
-}
-
-.page-header {
-    background-color: #f8f9fa;
-    padding: 10px 15px;
-    margin-bottom: 20px;
-    border-radius: 4px;
-    border-left: 4px solid #007bff;
-}
-
-.jobs-table th {
-    font-size: 14px;
-    font-weight: 600;
-    text-align: center;
-    vertical-align: middle;
-}
-
-.jobs-table td {
-    font-size: 13px;
-    vertical-align: middle;
-}
-
-.jobs-table .job-cell {
-    min-width: 100px;
-    font-weight: 500;
-}
-
-.jobs-table .contact-cell {
-    min-width: 120px;
-    word-break: break-all;
-}
-
-.jobs-table .other-cell {
-    max-width: 300px;
-    word-wrap: break-word;
-}
-
-.image-cell {
-    min-width: 100px;
-    font-weight: 500;
-}
-
-.view-image-btn {
-    white-space: nowrap;
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.3rem;
+    color: white !important;
     transition: all 0.3s ease;
 }
 
-.view-image-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.navbar-brand:hover {
+    transform: scale(1.05);
 }
 
-.highlighted-image {
-    animation: highlight 0.5s ease-in-out;
+.brand-text {
+    background: linear-gradient(45deg, #ffffff, #e3f2fd);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
-@keyframes highlight {
-    0% { background-color: transparent; }
-    50% { background-color: rgba(13, 110, 253, 0.1); }
-    100% { background-color: transparent; }
+/* 主要內容區域 */
+.main-content {
+    padding: 2rem 0;
+    position: relative;
+    z-index: 1;
 }
 
-/* 模態框樣式 */
-.modal-xl {
-    max-width: 90vw;
+/* 結果總覽卡片 */
+.results-overview {
+    margin-bottom: 2.5rem;
 }
 
-.modal-body {
-    min-height: 200px;
+.stat-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    transition: left 0.5s;
+}
+
+.stat-card:hover::before {
+    left: 100%;
+}
+
+.stat-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 1.8rem;
+    color: white;
+    margin-bottom: 1rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
-#modalImage {
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+.job-icon {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.image-icon {
+    background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+}
+
+.model-icon {
+    background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+}
+
+.success-icon {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+    line-height: 1;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-weight: 600;
+    margin: 0.5rem 0 0 0;
+    font-size: 1rem;
+}
+
+/* 操作按鈕區域 */
+.action-buttons {
+    margin-bottom: 2.5rem;
+}
+
+.action-btn {
+    border-radius: 25px;
+    font-weight: 600;
+    padding: 1rem 2.5rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    border: none;
+    min-width: 250px;
+}
+
+.action-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s;
+}
+
+.action-btn:hover::before {
+    left: 100%;
+}
+
+.action-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+}
+
+/* 主要結果容器 */
+.results-container {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+/* 現代化標籤導航 */
+.modern-tabs {
+    margin-bottom: 2rem;
+}
+
+.modern-tabs .nav-pills {
+    background: rgba(248, 249, 250, 0.8);
+    border-radius: 15px;
+    padding: 0.5rem;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.modern-tabs .nav-link {
+    border-radius: 12px;
+    font-weight: 600;
+    padding: 1rem 1.5rem;
+    transition: all 0.3s ease;
+    color: #6c757d;
+    border: none;
+    background: transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.modern-tabs .nav-link::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    transition: left 0.5s;
+}
+
+.modern-tabs .nav-link:hover::before {
+    left: 100%;
+}
+
+.modern-tabs .nav-link:hover {
+    color: #495057;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+.modern-tabs .nav-link.active {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+/* 工作資訊表格 */
+.jobs-table {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    border: none;
+}
+
+.jobs-table thead th {
+    background: linear-gradient(135deg, #343a40 0%, #495057 100%);
+    color: white;
+    font-weight: 600;
+    padding: 1.2rem 1rem;
+    border: none;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.jobs-table tbody td {
+    padding: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+
+.jobs-table tbody tr {
+    transition: all 0.3s ease;
+}
+
+.jobs-table tbody tr:hover {
+    background: rgba(0, 123, 255, 0.05);
+    transform: scale(1.01);
+}
+
+.job-cell, .contact-cell, .other-cell, .image-cell {
+    border-radius: 8px;
+}
+
+.view-image-btn {
+    border-radius: 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: 2px solid #007bff;
+    background: transparent;
+    color: #007bff;
+    padding: 0.5rem 1rem;
+}
+
+.view-image-btn:hover {
+    background: #007bff;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+}
+
+/* 圖片分析區域 */
+.block-image {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.block-image::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 123, 255, 0.1), transparent);
+    transition: left 0.5s;
+}
+
+.block-image:hover::before {
+    left: 100%;
+}
+
+.block-image:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+}
+
+.block-image img {
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease;
 }
 
-#modalImage:hover {
+.block-image img:hover {
     transform: scale(1.02);
 }
 
+.description {
+    background: rgba(248, 249, 250, 0.8);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.description .table {
+    margin: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.description .table td {
+    border: none;
+    padding: 0.8rem;
+}
+
+.description .table .bg-light {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    font-weight: 600;
+}
+
+/* 處理步驟卡片 */
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    background: white;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    border: none;
+    padding: 1.2rem;
+    color: white;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.card-body img {
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+    cursor: pointer;
+}
+
+.card-body img:hover {
+    transform: scale(1.02);
+}
+
+/* 模態框樣式 */
+.modal-content {
+    border: none;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
 .modal-header {
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border: none;
+    border-radius: 20px 20px 0 0;
+    padding: 1.5rem;
+}
+
+.modal-header .modal-title {
+    font-weight: 600;
+    font-size: 1.3rem;
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+    opacity: 0.8;
+    font-size: 1.2rem;
+}
+
+.modal-header .btn-close:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.modal-body {
+    padding: 2rem;
+    min-height: 200px;
 }
 
 .modal-footer {
-    background-color: #f8f9fa;
-    border-top: 1px solid #dee2e6;
+    border: none;
+    padding: 1.5rem 2rem;
+    background: rgba(248, 249, 250, 0.8);
+    border-radius: 0 0 20px 20px;
 }
 
 /* Google Spreadsheet 模態框專用樣式 */
@@ -151,32 +457,8 @@ body {
 
 #spreadsheetModal .modal-header {
     background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white;
-    border-radius: 0.375rem 0.375rem 0 0;
-    border-bottom: none;
-    padding: 1.25rem 1.5rem;
 }
 
-#spreadsheetModal .modal-header .modal-title {
-    font-weight: 600;
-    font-size: 1.25rem;
-}
-
-#spreadsheetModal .modal-header .btn-close {
-    filter: brightness(0) invert(1);
-    opacity: 0.8;
-}
-
-#spreadsheetModal .modal-header .btn-close:hover {
-    opacity: 1;
-}
-
-#spreadsheetModal .modal-body {
-    padding: 2rem 1.5rem;
-    background-color: #f8f9fa;
-}
-
-/* 主要內容區域 */
 .spreadsheet-content {
     background: white;
     border-radius: 12px;
@@ -185,7 +467,6 @@ body {
     border: 1px solid #e9ecef;
 }
 
-/* 功能介紹卡片 */
 .feature-card {
     background: linear-gradient(135deg, #e3f2fd 0%, #f1f8e9 100%);
     border: 2px solid #28a745;
@@ -196,29 +477,18 @@ body {
     overflow: hidden;
 }
 
-.feature-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #28a745, #20c997, #17a2b8);
-}
-
 .feature-card .card-title {
     color: #155724;
-    font-weight: 600;
-    font-size: 1.1rem;
+    font-weight: 700;
+    font-size: 1.2rem;
     margin-bottom: 1rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
 }
 
 .feature-card .card-title .bi {
-    font-size: 1.25rem;
-    color: #28a745;
+    margin-right: 0.5rem;
+    font-size: 1.3rem;
 }
 
 .feature-list {
@@ -229,330 +499,264 @@ body {
 
 .feature-list li {
     padding: 0.5rem 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.95rem;
-    color: #2d5a2d;
+    color: #155724;
+    font-weight: 500;
+    position: relative;
+    padding-left: 1.5rem;
 }
 
 .feature-list li::before {
     content: '✓';
-    background: #28a745;
-    color: white;
-    border-radius: 50%;
-    width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
+    position: absolute;
+    left: 0;
+    top: 0.5rem;
+    color: #28a745;
     font-weight: bold;
-    flex-shrink: 0;
+    font-size: 1.1rem;
 }
 
-/* 數據統計卡片 */
 .data-stats {
-    background: linear-gradient(135deg, #fff3cd 0%, #f8f9fa 100%);
-    border: 2px solid #ffc107;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
 }
 
 .data-stats .stats-title {
-    color: #664d03;
-    font-weight: 600;
-    font-size: 1.1rem;
+    color: #495057;
+    font-weight: 700;
+    font-size: 1.2rem;
     margin-bottom: 1rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
 }
 
 .data-stats .stats-title .bi {
-    font-size: 1.25rem;
-    color: #ffc107;
+    margin-right: 0.5rem;
+    font-size: 1.3rem;
 }
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
 }
 
 .stat-item {
+    text-align: center;
     background: white;
+    border-radius: 8px;
     padding: 1rem;
-    border-radius: 8px;
-    text-align: center;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
-.stat-number {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #28a745;
-    display: block;
+.stat-item .stat-number {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #007bff;
+    line-height: 1;
+    margin-bottom: 0.3rem;
 }
 
-.stat-label {
-    font-size: 0.85rem;
-    color: #6c757d;
-    margin-top: 0.25rem;
-}
-
-/* 高級選項區域 */
-.advanced-options {
-    background: #f8f9fa;
-    border: 1px dashed #dee2e6;
-    border-radius: 8px;
-    padding: 1.25rem;
-    margin-top: 1rem;
-}
-
-/* 狀態顯示區域 */
-#sendingStatus {
-    background: white;
-    border-radius: 12px;
-    padding: 2.5rem;
-    text-align: center;
-    border: 2px solid #e9ecef;
-}
-
-#sendingStatus .spinner-border {
-    width: 3rem;
-    height: 3rem;
-    border-width: 4px;
-}
-
-#sendingStatus .status-text {
-    font-size: 1.1rem;
-    color: #495057;
-    margin-top: 1.5rem;
-    font-weight: 500;
-}
-
-#sendingStatus .status-subtext {
+.stat-item .stat-label {
     font-size: 0.9rem;
     color: #6c757d;
-    margin-top: 0.5rem;
-}
-
-/* 結果顯示樣式 */
-#sendResult {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-}
-
-#sendResult .alert {
-    border: none;
-    border-radius: 10px;
-    padding: 1.5rem;
-}
-
-#sendResult .alert-success {
-    background: linear-gradient(135deg, #d1f2eb 0%, #f0fff4 100%);
-    color: #155724;
-    border-left: 5px solid #28a745;
-}
-
-#sendResult .alert-danger {
-    background: linear-gradient(135deg, #f8d7da 0%, #fff5f5 100%);
-    color: #721c24;
-    border-left: 5px solid #dc3545;
-}
-
-.success-actions {
-    background: #f8f9fa;
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin-top: 1rem;
-    border: 1px solid #e9ecef;
-}
-
-.success-actions .actions-title {
     font-weight: 600;
-    color: #28a745;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
 }
 
-.spreadsheet-link {
-    background: white;
-    border: 2px solid #28a745;
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    margin: 0.5rem 0;
-    font-family: 'Courier New', monospace;
-    font-size: 0.85rem;
-    word-break: break-all;
-    color: #495057;
-    cursor: text;
-    user-select: all;
-    transition: all 0.3s ease;
+/* 高亮動畫 */
+.highlighted-image {
+    animation: highlight 0.5s ease-in-out;
 }
 
-.spreadsheet-link:hover {
-    background: #f8f9fa;
-    border-color: #20c997;
+@keyframes highlight {
+    0% { background-color: transparent; }
+    50% { background-color: rgba(13, 110, 253, 0.1); }
+    100% { background-color: transparent; }
 }
 
-.spreadsheet-link:focus-within,
-.spreadsheet-link:active {
-    background: #e3f2fd;
-    border-color: #007bff;
-    outline: none;
-}
-
-/* 模態框頁腳樣式 */
-#spreadsheetModal .modal-footer {
-    background: #f8f9fa;
-    border-top: 1px solid #e9ecef;
-    padding: 1.25rem 1.5rem;
-    border-radius: 0 0 0.375rem 0.375rem;
-}
-
-/* 錯誤訊息樣式 */
-#errorMessage .alert {
-    border: none;
-    border-radius: 10px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 0;
-    background: linear-gradient(135deg, #f8d7da 0%, #fff5f5 100%);
-    color: #721c24;
-    border-left: 5px solid #dc3545;
-    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
-    animation: slideDown 0.3s ease-out;
-}
-
-#errorMessage .alert .bi {
-    margin-right: 0.5rem;
-    font-size: 1.1rem;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* 複製成功提示樣式 */
+/* 複製成功提示 */
 #copySuccessMessage {
     position: fixed;
     top: 20px;
     right: 20px;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(40, 167, 69, 0.3);
     z-index: 9999;
-    max-width: 350px;
-    background: linear-gradient(135deg, #d1f2eb 0%, #f0fff4 100%);
-    color: #155724;
-    border: 2px solid #28a745;
-    border-radius: 10px;
-    padding: 1rem 1.25rem;
-    box-shadow: 0 4px 20px rgba(40, 167, 69, 0.2);
-    animation: slideInRight 0.4s ease-out;
+    animation: slideInRight 0.3s ease;
+    display: flex;
+    align-items: center;
+    backdrop-filter: blur(10px);
+}
+
+#copySuccessMessage.hide {
+    animation: slideOutRight 0.3s ease forwards;
 }
 
 #copySuccessMessage .success-icon {
-    color: #28a745;
-    font-size: 1.2rem;
-    margin-right: 0.5rem;
+    font-size: 1.5rem;
+    margin-right: 1rem;
 }
 
 #copySuccessMessage .success-text {
     font-weight: 600;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
 }
 
 #copySuccessMessage .success-subtext {
-    font-size: 0.875rem;
-    opacity: 0.8;
-    margin: 0;
+    font-size: 0.85rem;
+    opacity: 0.9;
 }
 
 @keyframes slideInRight {
     from {
-        opacity: 0;
         transform: translateX(100%);
+        opacity: 0;
     }
     to {
-        opacity: 1;
         transform: translateX(0);
+        opacity: 1;
     }
 }
 
 @keyframes slideOutRight {
     from {
-        opacity: 1;
         transform: translateX(0);
+        opacity: 1;
     }
     to {
-        opacity: 0;
         transform: translateX(100%);
+        opacity: 0;
     }
-}
-
-#spreadsheetModal .modal-footer .btn {
-    padding: 0.75rem 1.5rem;
-    font-weight: 500;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
-}
-
-#spreadsheetModal .modal-footer .btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-#spreadsheetModal .modal-footer .btn-success {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    border: none;
 }
 
 /* 響應式設計 */
 @media (max-width: 768px) {
-    #spreadsheetModal .modal-dialog {
-        max-width: 95vw;
-        margin: 0.5rem auto;
+    .main-content {
+        padding: 1rem 0;
     }
     
-    #spreadsheetModal .modal-body {
-        padding: 1rem;
-    }
-    
-    .spreadsheet-content {
+    .results-container {
+        margin: 0 1rem;
         padding: 1.5rem;
+        border-radius: 15px;
+    }
+    
+    .stat-card {
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+    }
+    
+    .action-btn {
+        min-width: 200px;
+        padding: 0.8rem 2rem;
+        margin-bottom: 1rem;
+    }
+    
+    .modern-tabs .nav-link {
+        padding: 0.8rem 1rem;
+        font-size: 0.9rem;
     }
     
     .stats-grid {
         grid-template-columns: 1fr;
+        gap: 0.8rem;
     }
     
-    #spreadsheetModal .modal-footer {
+    .block-image {
         padding: 1rem;
-        flex-direction: column;
-        gap: 0.5rem;
     }
     
-    #spreadsheetModal .modal-footer .btn {
-        width: 100%;
+    .description {
+        padding: 1rem;
     }
     
-    /* 小螢幕上的複製成功提示 */
+    .jobs-table {
+        font-size: 0.8rem;
+    }
+    
+    .jobs-table th,
+    .jobs-table td {
+        padding: 0.6rem 0.4rem;
+    }
+    
     #copySuccessMessage {
         top: 10px;
         right: 10px;
         left: 10px;
-        max-width: none;
+        padding: 0.8rem 1rem;
     }
+}
+
+@media (max-width: 576px) {
+    .results-overview {
+        margin-bottom: 1.5rem;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+    
+    .stat-number {
+        font-size: 1.8rem;
+    }
+    
+    .action-buttons .d-flex {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .action-btn {
+        min-width: auto;
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    .modal-dialog {
+        margin: 1rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem 1rem;
+    }
+    
+    .modal-footer {
+        padding: 1rem;
+    }
+    
+    .modern-tabs .nav-pills {
+        padding: 0.3rem;
+    }
+    
+    .modern-tabs .nav-link {
+        padding: 0.6rem 0.8rem;
+        font-size: 0.85rem;
+    }
+}
+
+/* 頁腳樣式 */
+footer {
+    background: linear-gradient(135deg, #343a40 0%, #495057 100%) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+footer .text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+footer p, footer small {
+    color: rgba(255, 255, 255, 0.8) !important;
 } 

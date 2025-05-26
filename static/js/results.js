@@ -3,16 +3,60 @@ let imageData = {};
 
 // 初始化函數
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Results page 初始化中...');
+    
     // 從JSON script標籤中讀取圖片資料
     const imageDataScript = document.getElementById('imageDataScript');
     if (imageDataScript) {
         imageData = JSON.parse(imageDataScript.textContent);
+        console.log('✅ 圖片資料載入完成，共 ' + Object.keys(imageData).length + ' 張圖片');
     }
     
+    // 初始化現代化功能
+    initModernFeatures();
+    
+    // 初始化圖片檢視功能
+    initImageViewing();
+    
+    // 初始化下載模態框
+    initDownloadModal();
+    
+    // 初始化 Google Spreadsheet 模態框
+    initSpreadsheetModal();
+    
+    // 初始化表格互動功能
+    initTableInteractions();
+    
+    // 初始化表格排序功能
+    initTableSorting();
+    
+    // 初始化頁面動畫
+    initPageAnimations();
+    
+    // 初始化鍵盤快捷鍵
+    initKeyboardShortcuts();
+    
+    // 初始化通知系統
+    initNotificationSystem();
+    
     // 當 Google Spreadsheet 模態框顯示時重置表單
-    document.getElementById('spreadsheetModal').addEventListener('show.bs.modal', function () {
-        resetSpreadsheetModal();
-    });
+    const spreadsheetModal = document.getElementById('spreadsheetModal');
+    if (spreadsheetModal) {
+        spreadsheetModal.addEventListener('show.bs.modal', function () {
+            resetSpreadsheetModal();
+        });
+    }
+    
+    console.log('🎉 Results page 初始化完成!');
+    
+    // 顯示歡迎通知
+    setTimeout(() => {
+        showNotification(
+            '頁面載入完成！您可以查看分析結果、下載資料或創建 Google Spreadsheet。',
+            'success',
+            5000
+        );
+    }, 1000);
 });
 
 // 圖片相關函數
@@ -511,4 +555,852 @@ function isValidUrl(string) {
     } catch (_) {
         return false;
     }
+}
+
+// 現代化 Results 頁面 JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化所有功能
+    initModernFeatures();
+    initImageViewing();
+    initDownloadModal();
+    initSpreadsheetModal();
+    initTableInteractions();
+    initPageAnimations();
+    initKeyboardShortcuts();
+    initNotificationSystem();
+});
+
+// 現代化功能初始化
+function initModernFeatures() {
+    // 添加平滑滾動
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+    
+    // 添加工具提示
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl, {
+            trigger: 'hover focus'
+        });
+    });
+    
+    // 添加彈出框
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl);
+    });
+}
+
+// 圖片查看功能
+function initImageViewing() {
+    const imageModal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    const modalImageTitle = imageModal ? imageModal.querySelector('.modal-title') : null;
+    
+    // 為所有圖片查看按鈕添加事件監聽器
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('view-image-btn')) {
+            e.preventDefault();
+            
+            const imageName = e.target.getAttribute('data-image');
+            const imageTitle = e.target.getAttribute('data-title') || imageName;
+            
+            if (modalImage && imageName) {
+                // 添加載入動畫
+                showImageLoadingState(modalImage);
+                
+                // 設置圖片源
+                modalImage.src = `/view_image/${getProcessId()}/${imageName}`;
+                modalImage.alt = imageTitle;
+                
+                // 設置標題
+                if (modalImageTitle) {
+                    modalImageTitle.textContent = imageTitle;
+                }
+                
+                // 圖片載入完成後移除載入狀態
+                modalImage.onload = function() {
+                    hideImageLoadingState(modalImage);
+                    addImageZoomFeature(modalImage);
+                };
+                
+                modalImage.onerror = function() {
+                    showImageError(modalImage, '圖片載入失敗');
+                };
+                
+                // 高亮對應的圖片區塊
+                highlightCorrespondingImage(imageName);
+            }
+        }
+    });
+    
+    // 模態框關閉時清理
+    if (imageModal) {
+        imageModal.addEventListener('hidden.bs.modal', function() {
+            if (modalImage) {
+                modalImage.src = '';
+                modalImage.style.transform = 'scale(1)';
+                modalImage.style.cursor = 'default';
+            }
+            clearImageHighlight();
+        });
+    }
+}
+
+// 顯示圖片載入狀態
+function showImageLoadingState(img) {
+    const container = img.parentElement;
+    container.style.position = 'relative';
+    
+    const loader = document.createElement('div');
+    loader.className = 'image-loader';
+    loader.innerHTML = `
+        <div class="d-flex justify-content-center align-items-center h-100">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">載入中...</span>
+            </div>
+        </div>
+    `;
+    loader.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(2px);
+        border-radius: 10px;
+        z-index: 10;
+    `;
+    
+    container.appendChild(loader);
+}
+
+// 隱藏圖片載入狀態
+function hideImageLoadingState(img) {
+    const container = img.parentElement;
+    const loader = container.querySelector('.image-loader');
+    if (loader) {
+        loader.remove();
+    }
+}
+
+// 顯示圖片錯誤
+function showImageError(img, message) {
+    hideImageLoadingState(img);
+    img.style.display = 'none';
+    
+    const container = img.parentElement;
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'image-error text-center p-5';
+    errorDiv.innerHTML = `
+        <i class="bi bi-exclamation-triangle text-warning display-4 mb-3"></i>
+        <h5 class="text-muted">${message}</h5>
+    `;
+    
+    container.appendChild(errorDiv);
+}
+
+// 添加圖片縮放功能
+function addImageZoomFeature(img) {
+    let isZoomed = false;
+    
+    img.style.cursor = 'zoom-in';
+    img.style.transition = 'transform 0.3s ease';
+    
+    img.onclick = function() {
+        if (!isZoomed) {
+            img.style.transform = 'scale(1.5)';
+            img.style.cursor = 'zoom-out';
+            isZoomed = true;
+        } else {
+            img.style.transform = 'scale(1)';
+            img.style.cursor = 'zoom-in';
+            isZoomed = false;
+        }
+    };
+}
+
+// 高亮對應的圖片區塊
+function highlightCorrespondingImage(imageName) {
+    const imageBlocks = document.querySelectorAll('.block-image');
+    imageBlocks.forEach(block => {
+        const img = block.querySelector('img');
+        if (img && img.src.includes(imageName)) {
+            block.classList.add('highlighted-image');
+            
+            // 滾動到對應位置
+            setTimeout(() => {
+                block.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }, 100);
+        }
+    });
+}
+
+// 清除圖片高亮
+function clearImageHighlight() {
+    document.querySelectorAll('.highlighted-image').forEach(element => {
+        element.classList.remove('highlighted-image');
+    });
+}
+
+// 下載模態框功能
+function initDownloadModal() {
+    const downloadModal = document.getElementById('downloadModal');
+    const downloadBtn = document.getElementById('confirmDownload');
+    
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function() {
+            const selectedOptions = getSelectedDownloadOptions();
+            
+            if (selectedOptions.length === 0) {
+                showNotification('請至少選擇一個下載項目', 'warning');
+                return;
+            }
+            
+            // 顯示下載進度
+            showDownloadProgress();
+            
+            // 構建下載 URL
+            const params = new URLSearchParams();
+            selectedOptions.forEach(option => {
+                params.append('include', option);
+            });
+            
+            const downloadUrl = `/download/${getProcessId()}?${params.toString()}`;
+            
+            // 創建隱藏的下載鏈接
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = '';
+            link.style.display = 'none';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // 隱藏模態框
+            const modal = bootstrap.Modal.getInstance(downloadModal);
+            modal.hide();
+            
+            // 顯示成功通知
+            setTimeout(() => {
+                hideDownloadProgress();
+                showNotification('下載已開始，請檢查瀏覽器下載資料夾', 'success');
+            }, 1000);
+        });
+    }
+    
+    // 全選/取消全選功能
+    const selectAllBtn = document.getElementById('selectAllDownload');
+    const deselectAllBtn = document.getElementById('deselectAllDownload');
+    
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('#downloadModal input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateDownloadPreview();
+        });
+    }
+    
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('#downloadModal input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateDownloadPreview();
+        });
+    }
+    
+    // 監聽選項變化
+    document.addEventListener('change', function(e) {
+        if (e.target.type === 'checkbox' && e.target.closest('#downloadModal')) {
+            updateDownloadPreview();
+        }
+    });
+}
+
+// 獲取選中的下載選項
+function getSelectedDownloadOptions() {
+    const checkboxes = document.querySelectorAll('#downloadModal input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// 更新下載預覽
+function updateDownloadPreview() {
+    const selectedOptions = getSelectedDownloadOptions();
+    const previewDiv = document.getElementById('downloadPreview');
+    
+    if (previewDiv) {
+        if (selectedOptions.length > 0) {
+            const optionNames = {
+                'csv': 'CSV 工作資料表',
+                'sql': 'SQL 資料庫檔案',
+                'images': '工作區塊圖片',
+                'descriptions': 'AI 分析描述',
+                'processing_steps': '處理步驟圖片',
+                'readme': '說明文件'
+            };
+            
+            const selectedNames = selectedOptions.map(opt => optionNames[opt] || opt);
+            previewDiv.innerHTML = `
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    將下載：${selectedNames.join('、')}
+                </div>
+            `;
+        } else {
+            previewDiv.innerHTML = `
+                <div class="alert alert-warning mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    請至少選擇一個項目
+                </div>
+            `;
+        }
+    }
+}
+
+// 顯示下載進度
+function showDownloadProgress() {
+    const progressDiv = document.createElement('div');
+    progressDiv.id = 'downloadProgress';
+    progressDiv.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center';
+    progressDiv.style.cssText = `
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
+        z-index: 9999;
+    `;
+    
+    progressDiv.innerHTML = `
+        <div class="bg-white p-4 rounded-3 text-center shadow-lg">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">下載中...</span>
+            </div>
+            <h5>正在準備下載檔案...</h5>
+            <p class="text-muted mb-0">請稍候</p>
+        </div>
+    `;
+    
+    document.body.appendChild(progressDiv);
+}
+
+// 隱藏下載進度
+function hideDownloadProgress() {
+    const progressDiv = document.getElementById('downloadProgress');
+    if (progressDiv) {
+        progressDiv.remove();
+    }
+}
+
+// Google Spreadsheet 模態框功能
+function initSpreadsheetModal() {
+    const sendBtn = document.getElementById('sendToSpreadsheet');
+    const modal = document.getElementById('spreadsheetModal');
+    
+    if (sendBtn) {
+        sendBtn.addEventListener('click', function() {
+            const customUrl = document.getElementById('customAppsScriptUrl').value.trim();
+            sendToGoogleSheets(customUrl);
+        });
+    }
+    
+    // 重置模態框狀態
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function() {
+            resetSpreadsheetModal();
+        });
+    }
+}
+
+// 發送到 Google Sheets
+function sendToGoogleSheets(customUrl = '') {
+    const statusDiv = document.getElementById('sendingStatus');
+    const resultDiv = document.getElementById('sendResult');
+    const errorDiv = document.getElementById('errorMessage');
+    
+    // 顯示載入狀態
+    showSendingStatus();
+    
+    // 準備發送資料
+    const payload = {
+        apps_script_url: customUrl
+    };
+    
+    fetch(`/send_to_spreadsheet/${getProcessId()}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideSendingStatus();
+        
+        if (data.success) {
+            showSuccessResult(data);
+        } else {
+            showErrorResult(data.error || '發送失敗');
+        }
+    })
+    .catch(error => {
+        hideSendingStatus();
+        showErrorResult('網路錯誤：' + error.message);
+    });
+}
+
+// 顯示發送狀態
+function showSendingStatus() {
+    const statusDiv = document.getElementById('sendingStatus');
+    if (statusDiv) {
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">發送中...</span>
+                </div>
+                <div class="status-text">正在發送資料到 Google Spreadsheet...</div>
+                <div class="status-subtext text-muted">請稍候，這可能需要幾秒鐘</div>
+            </div>
+        `;
+    }
+}
+
+// 隱藏發送狀態
+function hideSendingStatus() {
+    const statusDiv = document.getElementById('sendingStatus');
+    if (statusDiv) {
+        statusDiv.style.display = 'none';
+    }
+}
+
+// 顯示成功結果
+function showSuccessResult(data) {
+    const resultDiv = document.getElementById('sendResult');
+    if (resultDiv) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <strong>發送成功！</strong> 已將 ${data.jobs_sent} 筆工作資料發送到 Google Spreadsheet
+            </div>
+            
+            ${data.spreadsheet_url ? `
+                <div class="success-actions">
+                    <div class="actions-title">
+                        <i class="bi bi-link-45deg"></i>
+                        電子表格連結
+                    </div>
+                    <div class="spreadsheet-link" onclick="copyToClipboard('${data.spreadsheet_url}')">
+                        ${data.spreadsheet_url}
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        點擊連結即可複製到剪貼簿
+                    </small>
+                </div>
+            ` : ''}
+        `;
+    }
+}
+
+// 顯示錯誤結果
+function showErrorResult(errorMessage) {
+    const errorDiv = document.getElementById('errorMessage');
+    if (errorDiv) {
+        errorDiv.style.display = 'block';
+        errorDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>發送失敗：</strong> ${errorMessage}
+            </div>
+        `;
+    }
+}
+
+// 重置模態框狀態
+function resetSpreadsheetModal() {
+    const statusDiv = document.getElementById('sendingStatus');
+    const resultDiv = document.getElementById('sendResult');
+    const errorDiv = document.getElementById('errorMessage');
+    
+    if (statusDiv) statusDiv.style.display = 'none';
+    if (resultDiv) resultDiv.style.display = 'none';
+    if (errorDiv) errorDiv.style.display = 'none';
+}
+
+// 複製到剪貼簿功能
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        showCopySuccessMessage();
+    }).catch(function(err) {
+        // 備用方法
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            showCopySuccessMessage();
+        } catch (err) {
+            showNotification('複製失敗，請手動選取並複製', 'error');
+        }
+        
+        document.body.removeChild(textArea);
+    });
+}
+
+// 顯示複製成功訊息
+function showCopySuccessMessage() {
+    // 移除舊的訊息
+    const existingMessage = document.getElementById('copySuccessMessage');
+    if (existingMessage) {
+        existingMessage.remove();
+    }
+    
+    // 創建新的成功訊息
+    const message = document.createElement('div');
+    message.id = 'copySuccessMessage';
+    message.innerHTML = `
+        <div class="success-icon">
+            <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <div>
+            <div class="success-text">複製成功！</div>
+            <div class="success-subtext">連結已複製到剪貼簿</div>
+        </div>
+    `;
+    
+    document.body.appendChild(message);
+    
+    // 3秒後自動移除
+    setTimeout(() => {
+        if (message.parentNode) {
+            message.classList.add('hide');
+            setTimeout(() => {
+                if (message.parentNode) {
+                    message.remove();
+                }
+            }, 300);
+        }
+    }, 3000);
+}
+
+// 表格交互功能
+function initTableInteractions() {
+    // 表格行懸停效果
+    const tableRows = document.querySelectorAll('.jobs-table tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.01)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+        });
+    });
+    
+    // 表格排序功能（如果需要）
+    initTableSorting();
+}
+
+// 表格排序功能
+function initTableSorting() {
+    const headers = document.querySelectorAll('.jobs-table th[data-sort]');
+    
+    headers.forEach(header => {
+        header.style.cursor = 'pointer';
+        header.addEventListener('click', function() {
+            const column = this.getAttribute('data-sort');
+            const table = this.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            // 確定排序方向
+            const isAscending = !this.classList.contains('sort-asc');
+            
+            // 移除所有排序類別
+            headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+            
+            // 添加新的排序類別
+            this.classList.add(isAscending ? 'sort-asc' : 'sort-desc');
+            
+            // 排序行
+            rows.sort((a, b) => {
+                const aValue = a.cells[getColumnIndex(column)].textContent.trim();
+                const bValue = b.cells[getColumnIndex(column)].textContent.trim();
+                
+                if (isAscending) {
+                    return aValue.localeCompare(bValue, 'zh-Hant');
+                } else {
+                    return bValue.localeCompare(aValue, 'zh-Hant');
+                }
+            });
+            
+            // 重新插入排序後的行
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    });
+}
+
+// 獲取欄位索引
+function getColumnIndex(columnName) {
+    const columnMap = {
+        'job': 0,
+        'industry': 1,
+        'time': 2,
+        'salary': 3,
+        'location': 4,
+        'contact': 5,
+        'other': 6,
+        'source': 7
+    };
+    return columnMap[columnName] || 0;
+}
+
+// 頁面動畫初始化
+function initPageAnimations() {
+    // 添加滾動動畫
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animate__animated', 'animate__fadeInUp');
+            }
+        });
+    }, observerOptions);
+    
+    // 觀察所有需要動畫的元素
+    document.querySelectorAll('.card, .block-image, .stat-card').forEach(el => {
+        observer.observe(el);
+    });
+    
+    // 添加浮動動畫到統計卡片
+    addFloatingAnimation();
+    
+    // 添加按鈕波紋效果
+    addButtonRippleEffect();
+}
+
+// 添加浮動動畫
+function addFloatingAnimation() {
+    const statCards = document.querySelectorAll('.stat-card');
+    
+    statCards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.2}s`;
+        card.classList.add('animate__animated', 'animate__fadeInUp');
+    });
+}
+
+// 添加按鈕波紋效果
+function addButtonRippleEffect() {
+    document.querySelectorAll('.btn, .action-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            const rect = this.getBoundingClientRect();
+            const ripple = document.createElement('span');
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.cssText = `
+                position: absolute;
+                width: ${size}px;
+                height: ${size}px;
+                left: ${x}px;
+                top: ${y}px;
+                background: rgba(255, 255, 255, 0.5);
+                border-radius: 50%;
+                transform: scale(0);
+                animation: ripple 0.6s linear;
+                pointer-events: none;
+            `;
+            
+            this.style.position = 'relative';
+            this.style.overflow = 'hidden';
+            this.appendChild(ripple);
+            
+            setTimeout(() => {
+                if (ripple.parentNode) {
+                    ripple.remove();
+                }
+            }, 600);
+        });
+    });
+    
+    // 添加 CSS 動畫（如果不存在）
+    if (!document.getElementById('ripple-animation')) {
+        const style = document.createElement('style');
+        style.id = 'ripple-animation';
+        style.textContent = `
+            @keyframes ripple {
+                to {
+                    transform: scale(4);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+// 鍵盤快捷鍵
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+D 或 Cmd+D - 打開下載模態框
+        if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+            e.preventDefault();
+            const downloadModal = document.getElementById('downloadModal');
+            if (downloadModal) {
+                const modal = new bootstrap.Modal(downloadModal);
+                modal.show();
+            }
+        }
+        
+        // Ctrl+G 或 Cmd+G - 打開 Google Sheets 模態框
+        if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+            e.preventDefault();
+            const spreadsheetModal = document.getElementById('spreadsheetModal');
+            if (spreadsheetModal) {
+                const modal = new bootstrap.Modal(spreadsheetModal);
+                modal.show();
+            }
+        }
+        
+        // Escape - 關閉所有模態框
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal.show').forEach(modal => {
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            });
+        }
+    });
+}
+
+// 通知系統
+function initNotificationSystem() {
+    // 創建通知容器（如果不存在）
+    if (!document.getElementById('notification-container')) {
+        const container = document.createElement('div');
+        container.id = 'notification-container';
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 350px;
+        `;
+        document.body.appendChild(container);
+    }
+}
+
+// 顯示通知
+function showNotification(message, type = 'info', duration = 4000) {
+    const container = document.getElementById('notification-container');
+    if (!container) return;
+    
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show mb-2`;
+    notification.style.cssText = `
+        animation: slideInRight 0.3s ease;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        border: none;
+        border-radius: 10px;
+        backdrop-filter: blur(10px);
+    `;
+    
+    const icons = {
+        success: 'check-circle-fill',
+        error: 'exclamation-triangle-fill',
+        warning: 'exclamation-circle-fill',
+        info: 'info-circle-fill'
+    };
+    
+    notification.innerHTML = `
+        <i class="bi bi-${icons[type]} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    container.appendChild(notification);
+    
+    // 自動移除
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 300);
+        }
+    }, duration);
+}
+
+// 工具函數
+function getProcessId() {
+    const pathSegments = window.location.pathname.split('/');
+    return pathSegments[pathSegments.length - 1];
+}
+
+// 格式化檔案大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 格式化時間
+function formatTime(date) {
+    return new Intl.DateTimeFormat('zh-TW', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    }).format(date);
+}
+
+// 導出到全域作用域（為了向後兼容）
+window.copyToClipboard = copyToClipboard;
+window.showNotification = showNotification;
+window.showImageModal = showImageModal;
+window.switchToImageTab = switchToImageTab;
+window.showStepImageModal = showStepImageModal;
+window.downloadSelected = downloadSelected;
+window.sendToSpreadsheet = sendToSpreadsheet;
+
+// 版本信息
+console.log('📊 Results.js v2.0 - 現代化版本已載入');
+console.log('🎨 功能包括: 現代化UI、動畫效果、鍵盤快捷鍵、通知系統、表格排序');
+console.log('⌨️ 快捷鍵: Ctrl+D (下載), Ctrl+G (Google Sheets), ESC (關閉模態框)');
+
+// 性能監控
+if (typeof performance !== 'undefined' && performance.mark) {
+    performance.mark('results-js-loaded');
 } 
