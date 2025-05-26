@@ -50,7 +50,7 @@ def evaluate_single_orientation(api_key, orientation_name, rotated_image):
         # 為每個線程創建獨立的 API 配置
         genai.configure(api_key=api_key)
         MODEL = genai.GenerativeModel(
-            'gemini-2.0-flash-001',  # 仍然建議使用較強模型以確保方向判斷的準確性
+            'gemini-2.0-flash-001',
             generation_config={
                 "temperature": 0.0,
                 "top_k": 1,
@@ -75,17 +75,31 @@ def evaluate_single_orientation(api_key, orientation_name, rotated_image):
 - 4-6分：方向有明顯問題，如文字是垂直的或倒置的，但仍能辨識出部分內容。
 - 1-3分：完全錯誤，無法辨識為正常的報紙閱讀方向。
 
-請只回覆一個數字分數（例如：8.5），不要加任何其他說明文字。"""
+請「僅僅」回覆一個「阿拉伯數字」表示的分數（例如：8.5 或 7），「絕對不要」包含任何其他文字、標點符號、空格或額外說明。"""
         
         response = MODEL.generate_content([prompt, pil_image])
         score_text = response.text.strip()
         
         # 嘗試解析分數
         try:
-            score = float(score_text)
+            # 清理分數文字，移除空格並處理可能的 "1. 5" 這種情況
+            cleaned_score_text = "".join(char for char in score_text if char.isdigit() or char == '.')
+            # 確保小數點只有一個，且在數字中間
+            if cleaned_score_text.count('.') > 1:
+                # 如果有多個小數點，只保留第一個
+                parts = cleaned_score_text.split('.')
+                cleaned_score_text = parts[0] + '.' + "".join(parts[1:])
+            
+            # 再次嘗試移除開頭或結尾可能存在的多餘非數字字元 (除了點)
+            cleaned_score_text = ''.join(filter(lambda x: x.isdigit() or x == '.', cleaned_score_text))
+            if not cleaned_score_text or cleaned_score_text == '.': # 如果清理後為空或只剩小數點
+                print(f"清理後的分數文字無效 ({orientation_name}): '{score_text}' -> '{cleaned_score_text}'")
+                return orientation_name, 1.0
+
+            score = float(cleaned_score_text)
             # 確保分數在1-10範圍內
             score = max(1.0, min(10.0, score))
-            print(f"{orientation_name}: {score}分")
+            print(f"{orientation_name}: {score}分 (原始回應: '{score_text}')")
             return orientation_name, score
         except ValueError:
             print(f"無法解析{orientation_name}的分數: {score_text}")
