@@ -131,128 +131,330 @@
 
         /* Google Spreadsheet 模態框專用樣式 */
         #spreadsheetModal .modal-dialog {
-            max-width: 600px; /* 稍微縮小寬度以適應垂直堆疊 */
+            max-width: 700px;
+        }
+        
+        #spreadsheetModal .modal-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border-radius: 0.375rem 0.375rem 0 0;
+            border-bottom: none;
+            padding: 1.25rem 1.5rem;
+        }
+        
+        #spreadsheetModal .modal-header .modal-title {
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+        
+        #spreadsheetModal .modal-header .btn-close {
+            filter: brightness(0) invert(1);
+            opacity: 0.8;
+        }
+        
+        #spreadsheetModal .modal-header .btn-close:hover {
+            opacity: 1;
         }
         
         #spreadsheetModal .modal-body {
-            padding: 1.5rem;
-            display: flex; /* 使用 Flexbox */
-            flex-direction: column; /* 垂直排列 */
-            gap: 1.5rem; /* 區塊之間的間距 */
+            padding: 2rem 1.5rem;
+            background-color: #f8f9fa;
         }
         
-        #spreadsheetModal .alert {
-            margin-bottom: 0; /* 移除原有的 margin-bottom，由 flex gap 控制 */
+        /* 主要內容區域 */
+        .spreadsheet-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+        
+        /* 功能介紹卡片 */
+        .feature-card {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f1f8e9 100%);
+            border: 2px solid #28a745;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #28a745, #20c997, #17a2b8);
+        }
+        
+        .feature-card .card-title {
+            color: #155724;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .feature-card .card-title .bi {
+            font-size: 1.25rem;
+            color: #28a745;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .feature-list li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            color: #2d5a2d;
+        }
+        
+        .feature-list li::before {
+            content: '✓';
+            background: #28a745;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        /* 數據統計卡片 */
+        .data-stats {
+            background: linear-gradient(135deg, #fff3cd 0%, #f8f9fa 100%);
+            border: 2px solid #ffc107;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .data-stats .stats-title {
+            color: #664d03;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .data-stats .stats-title .bi {
+            font-size: 1.25rem;
+            color: #ffc107;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+        
+        .stat-item {
+            background: white;
             padding: 1rem;
             border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         
-        #spreadsheetModal .alert h6,
-        #spreadsheetModal .alert strong { /* 合併選擇器 */
-            margin-bottom: 0.5rem;
-            font-size: 1.05rem; /* 略微調整字體大小 */
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #28a745;
+            display: block;
         }
         
-        #spreadsheetModal .alert ul {
-            margin-bottom: 0;
-            padding-left: 1.25rem;
+        .stat-label {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
         }
         
-        #spreadsheetModal .alert li {
-            margin-bottom: 0.3rem; /* 略微調整列表項間距 */
-            line-height: 1.4;
+        /* 高級選項區域 */
+        .advanced-options {
+            background: #f8f9fa;
+            border: 1px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-top: 1rem;
         }
         
-        #spreadsheetModal .alert li:last-child {
-            margin-bottom: 0;
-        }
-        
-        #spreadsheetModal .alert p {
-            margin-bottom: 0.3rem; /* 略微調整段落間距 */
-            line-height: 1.5;
-        }
-        
-        #spreadsheetModal .alert .bi {
-            margin-right: 0.5rem;
-            font-size: 1.05rem; /* 略微調整圖標大小 */
-        }
-
-        #spreadsheetModal #spreadsheetForm .form-label strong {
-            font-size: 1rem; /* 調整表單標籤字體 */
-        }
-
-        #spreadsheetModal #spreadsheetForm .form-text {
-            font-size: 0.875rem;
-        }
-        
-        /* 發送狀態樣式 */
+        /* 狀態顯示區域 */
         #sendingStatus {
-            padding: 1.5rem; /* 調整內邊距 */
-            text-align: center; /* 確保內容居中 */
+            background: white;
+            border-radius: 12px;
+            padding: 2.5rem;
+            text-align: center;
+            border: 2px solid #e9ecef;
         }
         
         #sendingStatus .spinner-border {
-            width: 2.5rem; /* 略微調整 spinner 大小 */
-            height: 2.5rem;
+            width: 3rem;
+            height: 3rem;
+            border-width: 4px;
         }
         
-        #sendingStatus p {
-            font-size: 1rem; /* 調整文字大小 */
+        #sendingStatus .status-text {
+            font-size: 1.1rem;
+            color: #495057;
+            margin-top: 1.5rem;
+            font-weight: 500;
+        }
+        
+        #sendingStatus .status-subtext {
+            font-size: 0.9rem;
             color: #6c757d;
-            margin-top: 1rem; /* 增加與 spinner 的間距 */
-            margin-bottom: 0;
+            margin-top: 0.5rem;
         }
         
-        /* 發送結果樣式 */
+        /* 結果顯示樣式 */
+        #sendResult {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        
         #sendResult .alert {
-            border-radius: 8px;
-            /* border: none; 已有，可移除 */
+            border: none;
+            border-radius: 10px;
+            padding: 1.5rem;
         }
         
-        #sendResult .bg-light {
-            background-color: #f8f9fa !important;
+        #sendResult .alert-success {
+            background: linear-gradient(135deg, #d1f2eb 0%, #f0fff4 100%);
+            color: #155724;
+            border-left: 5px solid #28a745;
+        }
+        
+        #sendResult .alert-danger {
+            background: linear-gradient(135deg, #f8d7da 0%, #fff5f5 100%);
+            color: #721c24;
+            border-left: 5px solid #dc3545;
+        }
+        
+        .success-actions {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-top: 1rem;
             border: 1px solid #e9ecef;
-            border-radius: 6px;
-            padding: 1rem;
         }
         
-        #sendResult .btn {
-            margin-bottom: 0.5rem;
+        .success-actions .actions-title {
+            font-weight: 600;
+            color: #28a745;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
         
-        #sendResult .font-monospace {
-            background-color: #e9ecef;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.875rem;
+        .spreadsheet-link {
+            background: white;
+            border: 2px solid #28a745;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin: 0.5rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
             word-break: break-all;
+            color: #495057;
         }
         
         /* 模態框頁腳樣式 */
         #spreadsheetModal .modal-footer {
-            padding: 1rem 1.5rem; /* 調整頁腳內邊距 */
+            background: #f8f9fa;
             border-top: 1px solid #e9ecef;
+            padding: 1.25rem 1.5rem;
+            border-radius: 0 0 0.375rem 0.375rem;
+        }
+        
+        /* 錯誤訊息樣式 */
+        #errorMessage .alert {
+            border: none;
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0;
+            background: linear-gradient(135deg, #f8d7da 0%, #fff5f5 100%);
+            color: #721c24;
+            border-left: 5px solid #dc3545;
+            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        #errorMessage .alert .bi {
+            margin-right: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         #spreadsheetModal .modal-footer .btn {
-            padding: 0.6rem 1.2rem; /* 調整按鈕內邊距 */
+            padding: 0.75rem 1.5rem;
             font-weight: 500;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
         }
         
-        /* 響應式設計 - 保持已有的媒體查詢，可能需要微調 */
+        #spreadsheetModal .modal-footer .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        #spreadsheetModal .modal-footer .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+        }
+        
+        /* 響應式設計 */
         @media (max-width: 768px) {
             #spreadsheetModal .modal-dialog {
                 max-width: 95vw;
-                margin: 1rem auto; /* 使其在小屏幕上居中 */
+                margin: 0.5rem auto;
             }
             
             #spreadsheetModal .modal-body {
-                padding: 1rem; /* 小屏幕時的內邊距 */
-                gap: 1rem; /* 小屏幕時的區塊間距 */
+                padding: 1rem;
+            }
+            
+            .spreadsheet-content {
+                padding: 1.5rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
             
             #spreadsheetModal .modal-footer {
-                padding: 1rem; /* 小屏幕時的頁腳內邊距 */
+                padding: 1rem;
                 flex-direction: column;
                 gap: 0.5rem;
             }
@@ -780,57 +982,83 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-info order-1">
-                        <h6><i class="bi bi-info-circle"></i> 自動創建 Google Sheet</h6>
-                        <p>系統將自動為您創建一個新的 Google Spreadsheet 來儲存職缺資料，無需手動設定。</p>
-                        <ul>
-                            <li>自動創建包含所有職缺資料的 Google Sheet</li>
-                            <li>包含處理摘要和行業分布統計</li>
-                            <li>創建完成後將提供 Google Sheet 連結</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="alert alert-success order-2">
-                        <h6><i class="bi bi-file-spreadsheet"></i> 將要發送的資料</h6>
-                        <ul>
-                            <li><strong>{{ all_jobs|length }} 筆</strong>職缺資料</li>
-                            <li>包含工作、行業、薪資、地點等詳細資訊</li>
-                            <li>處理時間戳記和來源圖片資訊</li>
-                            <li>行業分布統計圖表</li>
-                        </ul>
-                    </div>
-                    
-                    <form id="spreadsheetForm" style="display: none;" class="order-3 w-100">
-                        <!-- 保留表單以備將來需要手動輸入 URL 的情況 -->
-                        <div class="mb-3">
-                            <label for="appsScriptUrl" class="form-label">
-                                <strong>自訂 Google Apps Script URL（可選）</strong>
-                            </label>
-                            <input type="url" class="form-control" id="appsScriptUrl" 
-                                   placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec">
-                            <div class="form-text">
-                                留空將使用預設的自動創建功能
+                    <!-- 主要內容區域 -->
+                    <div class="spreadsheet-content" id="mainContent">
+                        <!-- 錯誤訊息顯示區域 -->
+                        <div id="errorMessage" class="d-none mb-3"></div>
+                        <!-- 功能介紹卡片 -->
+                        <div class="feature-card">
+                            <div class="card-title">
+                                <i class="bi bi-magic"></i>
+                                自動創建 Google Spreadsheet
+                            </div>
+                            <ul class="feature-list">
+                                <li>一鍵自動創建全新的 Google Spreadsheet</li>
+                                <li>自動整理和格式化所有職缺資料</li>
+                                <li>包含詳細的工作資訊和統計分析</li>
+                                <li>生成專業的數據視覺化圖表</li>
+                                <li>提供可分享的雲端連結，隨時存取</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- 數據統計卡片 -->
+                        <div class="data-stats">
+                            <div class="stats-title">
+                                <i class="bi bi-graph-up"></i>
+                                本次處理統計
+                            </div>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <span class="stat-number">{{ all_jobs|length }}</span>
+                                    <div class="stat-label">職缺數量</div>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">{{ image_files|length }}</span>
+                                    <div class="stat-label">處理圖片</div>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">7</span>
+                                    <div class="stat-label">資料欄位</div>
+                                </div>
                             </div>
                         </div>
-                    </form>
+                        
+                        <!-- 高級選項 -->
+                        <div class="advanced-options" id="advancedOptions">
+                            <form id="spreadsheetForm">
+                                <div class="mb-3">
+                                    <label for="appsScriptUrl" class="form-label">
+                                        <strong><i class="bi bi-gear"></i> 自訂 Google Apps Script URL</strong>
+                                    </label>
+                                    <input type="url" class="form-control" id="appsScriptUrl" 
+                                           placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec">
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle"></i> 
+                                        如果您有自己的 Google Apps Script，可以在此輸入。留空將使用系統預設功能。
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                     
                     <!-- 發送狀態顯示 -->
-                    <div id="sendingStatus" class="d-none order-4 w-100">
-                        <div class="text-center">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">發送中...</span>
-                            </div>
-                            <p class="mt-2">正在創建 Google Spreadsheet...</p>
+                    <div id="sendingStatus" class="d-none">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">創建中...</span>
                         </div>
+                        <div class="status-text">正在創建您的 Google Spreadsheet</div>
+                        <div class="status-subtext">請稍候，系統正在處理您的資料...</div>
                     </div>
                     
                     <!-- 發送結果顯示 -->
-                    <div id="sendResult" class="d-none order-5 w-100"></div>
+                    <div id="sendResult" class="d-none"></div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> 取消
+                    </button>
                     <button type="button" class="btn btn-success" id="sendToSpreadsheetBtn" onclick="sendToSpreadsheet()">
-                        <i class="bi bi-plus-circle"></i> 創建 Google Sheet
+                        <i class="bi bi-plus-circle"></i> 立即創建
                     </button>
                 </div>
             </div>
@@ -1070,6 +1298,9 @@
         // Google Spreadsheet 相關函數
 
         function resetSpreadsheetModal() {
+            // 顯示主要內容區域
+            document.getElementById('mainContent').classList.remove('d-none');
+            
             // 重置表單
             document.getElementById('spreadsheetForm').reset();
             
@@ -1077,14 +1308,20 @@
             document.getElementById('sendingStatus').classList.add('d-none');
             document.getElementById('sendResult').classList.add('d-none');
             
+            // 隱藏錯誤訊息
+            document.getElementById('errorMessage').classList.add('d-none');
+            
             // 啟用發送按鈕
             const sendBtn = document.getElementById('sendToSpreadsheetBtn');
             sendBtn.disabled = false;
-            sendBtn.innerHTML = '<i class="bi bi-plus-circle"></i> 創建 Google Sheet';
+            sendBtn.innerHTML = '<i class="bi bi-plus-circle"></i> 立即創建';
         }
 
         async function sendToSpreadsheet() {
             const appsScriptUrl = document.getElementById('appsScriptUrl').value.trim();
+            
+            // 隱藏錯誤訊息
+            document.getElementById('errorMessage').classList.add('d-none');
             
             // 顯示發送狀態
             showSendingStatus();
@@ -1116,8 +1353,8 @@
         }
 
         function showSendingStatus() {
-            // 隱藏表單
-            document.getElementById('spreadsheetForm').style.display = 'none';
+            // 隱藏主要內容區域
+            document.getElementById('mainContent').classList.add('d-none');
             
             // 顯示發送狀態
             document.getElementById('sendingStatus').classList.remove('d-none');
@@ -1132,11 +1369,11 @@
             // 隱藏發送狀態
             document.getElementById('sendingStatus').classList.add('d-none');
             
-            // 顯示結果
-            const resultDiv = document.getElementById('sendResult');
-            resultDiv.classList.remove('d-none');
-            
             if (success) {
+                // 顯示成功結果
+                const resultDiv = document.getElementById('sendResult');
+                resultDiv.classList.remove('d-none');
+                
                 let successHtml = `
                     <div class="alert alert-success">
                         <i class="bi bi-check-circle"></i>
@@ -1148,20 +1385,23 @@
                 // 如果有 Google Sheet URL，顯示連結
                 if (data && data.spreadsheet_url) {
                     successHtml += `
-                        <div class="mt-3 p-3 bg-light rounded">
-                            <h6 class="mb-2"><i class="bi bi-file-earmark-spreadsheet text-success"></i> Google Spreadsheet 已創建</h6>
+                        <div class="success-actions mt-3">
+                            <div class="actions-title">
+                                <i class="bi bi-file-earmark-spreadsheet"></i>
+                                Google Spreadsheet 已創建
+                            </div>
                             <div class="d-grid gap-2">
-                                <a href="${data.spreadsheet_url}" target="_blank" class="btn btn-success btn-sm">
+                                <a href="${data.spreadsheet_url}" target="_blank" class="btn btn-success">
                                     <i class="bi bi-box-arrow-up-right"></i> 開啟 Google Spreadsheet
                                 </a>
-                                <button class="btn btn-outline-secondary btn-sm" onclick="copyToClipboard('${data.spreadsheet_url}')">
+                                <button class="btn btn-outline-secondary" onclick="copyToClipboard('${data.spreadsheet_url}')">
                                     <i class="bi bi-clipboard"></i> 複製連結
                                 </button>
                             </div>
-                            <small class="text-muted d-block mt-2">
-                                連結：<span class="font-monospace">${data.spreadsheet_url}</span>
-                            </small>
-                    </div>
+                            <div class="spreadsheet-link mt-2">
+                                ${data.spreadsheet_url}
+                            </div>
+                        </div>
                 `;
                 }
                 
@@ -1178,22 +1418,24 @@
                 };
                 
             } else {
-                resultDiv.innerHTML = `
-                    <div class="alert alert-danger">
+                // 顯示錯誤訊息在頁腳
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.innerHTML = `
+                    <div class="alert">
                         <i class="bi bi-exclamation-triangle"></i>
-                        <strong>創建失敗！</strong><br>
-                        ${message}
-                        <br><small class="mt-2 d-block">請稍後再試，或聯繫系統管理員。</small>
+                        <strong>創建失敗！</strong> ${message}
+                        <br><small class="mt-1 d-block">請檢查網路連線或稍後再試。如果問題持續，請聯繫系統管理員。</small>
                     </div>
                 `;
+                errorDiv.classList.remove('d-none');
                 
                 // 重新啟用發送按鈕
                 const sendBtn = document.getElementById('sendToSpreadsheetBtn');
                 sendBtn.disabled = false;
                 sendBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> 重新嘗試';
                 
-                // 顯示表單讓用戶可以輸入自定義 URL
-                document.getElementById('spreadsheetForm').style.display = 'block';
+                // 顯示主要內容讓用戶可以使用高級選項
+                document.getElementById('mainContent').classList.remove('d-none');
             }
         }
         
