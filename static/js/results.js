@@ -30,8 +30,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化表格排序功能
     initTableSorting();
     
-    // 初始化頁面動畫
-    initPageAnimations();
+    // 禁用頁面動畫
+    // initPageAnimations();
     
     // 初始化鍵盤快捷鍵
     initKeyboardShortcuts();
@@ -1177,6 +1177,8 @@ function getColumnIndex(columnName) {
 
 // 頁面動畫初始化
 function initPageAnimations() {
+    // 禁用滾動動畫以避免干擾
+    /*
     // 添加滾動動畫
     const observerOptions = {
         threshold: 0.1,
@@ -1198,19 +1200,23 @@ function initPageAnimations() {
     
     // 添加浮動動畫到統計卡片
     addFloatingAnimation();
+    */
     
-    // 添加按鈕波紋效果
+    // 僅保留按鈕波紋效果
     addButtonRippleEffect();
 }
 
-// 添加浮動動畫
+// 禁用浮動動畫
 function addFloatingAnimation() {
+    // 浮動動畫已禁用
+    /*
     const statCards = document.querySelectorAll('.stat-card');
     
     statCards.forEach((card, index) => {
         card.style.animationDelay = `${index * 0.2}s`;
         card.classList.add('animate__animated', 'animate__fadeInUp');
     });
+    */
 }
 
 // 添加按鈕波紋效果
@@ -1267,26 +1273,6 @@ function addButtonRippleEffect() {
 // 鍵盤快捷鍵
 function initKeyboardShortcuts() {
     document.addEventListener('keydown', function(e) {
-        // Ctrl+D 或 Cmd+D - 打開下載模態框
-        if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
-            e.preventDefault();
-            const downloadModal = document.getElementById('downloadModal');
-            if (downloadModal) {
-                const modal = new bootstrap.Modal(downloadModal);
-                modal.show();
-            }
-        }
-        
-        // Ctrl+G 或 Cmd+G - 打開 Google Sheets 模態框
-        if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
-            e.preventDefault();
-            const spreadsheetModal = document.getElementById('spreadsheetModal');
-            if (spreadsheetModal) {
-                const modal = new bootstrap.Modal(spreadsheetModal);
-                modal.show();
-            }
-        }
-        
         // Escape - 關閉所有模態框
         if (e.key === 'Escape') {
             document.querySelectorAll('.modal.show').forEach(modal => {
@@ -1398,7 +1384,7 @@ window.sendToSpreadsheet = sendToSpreadsheet;
 // 版本信息
 console.log('📊 Results.js v2.0 - 現代化版本已載入');
 console.log('🎨 功能包括: 現代化UI、動畫效果、鍵盤快捷鍵、通知系統、表格排序');
-console.log('⌨️ 快捷鍵: Ctrl+D (下載), Ctrl+G (Google Sheets), ESC (關閉模態框)');
+console.log('⌨️ 快捷鍵: ESC (關閉模態框)');
 
 // 性能監控
 if (typeof performance !== 'undefined' && performance.mark) {
