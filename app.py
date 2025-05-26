@@ -16,6 +16,10 @@ import secrets
 from dotenv import load_dotenv
 import requests  # 添加 requests 庫用於發送 HTTP 請求
 from datetime import datetime
+import threading
+import concurrent.futures
+from functools import partial
+import time
 
 # 載入環境變數
 load_dotenv()
@@ -40,18 +44,10 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def check_and_get_rotation_direction(image):
-    """使用Gemini API檢查圖片方向，返回需要旋轉的方向信息"""
-    
-    # 從session中獲取API密鑰
-    api_key = session.get('gemini_api_key', '')
-    
-    if not api_key:
-        print("未設置Gemini API密鑰，跳過方向檢查")
-        return "正確"
-    
+def evaluate_single_orientation(api_key, orientation_name, rotated_image):
+    """評估單個方向的圖片 - 用於多線程處理"""
     try:
-        # 配置API密鑰，並設定temperature、top_k、top_p讓生成結果固定
+        # 為每個線程創建獨立的 API 配置
         genai.configure(api_key=api_key)
         MODEL = genai.GenerativeModel(
             'gemini-2.0-flash-001',
@@ -62,26 +58,12 @@ def check_and_get_rotation_direction(image):
             }
         )
         
-        # 生成四個方向的圖片
-        orientations = {
-            "正確": image,
-            "順時針90度": cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE),
-            "180度": cv2.rotate(image, cv2.ROTATE_180),
-            "逆時針90度": cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        }
+        # 將OpenCV圖片轉換為PIL格式
+        image_rgb = cv2.cvtColor(rotated_image, cv2.COLOR_BGR2RGB)
+        pil_image = Image.fromarray(image_rgb)
         
-        print("開始分析四個方向的圖片...")
-        scores = {}
-        
-        # 對每個方向進行評分
-        for orientation_name, rotated_image in orientations.items():
-            try:
-                # 將OpenCV圖片轉換為PIL格式
-                image_rgb = cv2.cvtColor(rotated_image, cv2.COLOR_BGR2RGB)
-                pil_image = Image.fromarray(image_rgb)
-                
-                # 調用Gemini API進行評分
-                prompt = f"""你現在是一個專門判斷圖片方向的AI助手。請仔細觀察這張圖片中的文字閱讀方向。
+        # 調用Gemini API進行評分
+        prompt = f"""你現在是一個專門判斷圖片方向的AI助手。請仔細觀察這張圖片中的文字閱讀方向。
 
 請給這張圖片的文字可讀性打分，分數範圍是1到10（可以包含小數點，例如7.5）：
 - 10分：文字完全正確，可以正常閱讀
@@ -90,24 +72,71 @@ def check_and_get_rotation_direction(image):
 - 1-3分：文字完全顛倒或側向，無法正常閱讀
 
 請只回覆一個數字分數（例如：8.5），不要加任何其他說明文字。"""
-                
-                response = MODEL.generate_content([prompt, pil_image])
-                score_text = response.text.strip()
-                
-                # 嘗試解析分數
+        
+        response = MODEL.generate_content([prompt, pil_image])
+        score_text = response.text.strip()
+        
+        # 嘗試解析分數
+        try:
+            score = float(score_text)
+            # 確保分數在1-10範圍內
+            score = max(1.0, min(10.0, score))
+            print(f"{orientation_name}: {score}分")
+            return orientation_name, score
+        except ValueError:
+            print(f"無法解析{orientation_name}的分數: {score_text}")
+            return orientation_name, 1.0
+            
+    except Exception as e:
+        print(f"評估{orientation_name}時出錯: {str(e)}")
+        return orientation_name, 1.0
+
+def check_and_get_rotation_direction(image):
+    """使用Gemini API檢查圖片方向，返回需要旋轉的方向信息（多線程版本）"""
+    
+    # 從session中獲取API密鑰
+    api_key = session.get('gemini_api_key', '')
+    
+    if not api_key:
+        print("未設置Gemini API密鑰，跳過方向檢查")
+        return "正確"
+    
+    try:
+        # 生成四個方向的圖片
+        orientations = {
+            "正確": image,
+            "順時針90度": cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE),
+            "180度": cv2.rotate(image, cv2.ROTATE_180),
+            "逆時針90度": cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        }
+        
+        print("開始並行分析四個方向的圖片...")
+        start_time = time.time()
+        
+        # 使用 ThreadPoolExecutor 並行處理四個方向
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            # 創建部分函數，固定 api_key 參數
+            evaluate_func = partial(evaluate_single_orientation, api_key)
+            
+            # 提交所有任務
+            future_to_orientation = {
+                executor.submit(evaluate_func, orientation_name, rotated_image): orientation_name
+                for orientation_name, rotated_image in orientations.items()
+            }
+            
+            scores = {}
+            # 收集結果
+            for future in concurrent.futures.as_completed(future_to_orientation):
                 try:
-                    score = float(score_text)
-                    # 確保分數在1-10範圍內
-                    score = max(1.0, min(10.0, score))
+                    orientation_name, score = future.result()
                     scores[orientation_name] = score
-                    print(f"{orientation_name}: {score}分")
-                except ValueError:
-                    print(f"無法解析{orientation_name}的分數: {score_text}")
+                except Exception as e:
+                    orientation_name = future_to_orientation[future]
+                    print(f"處理{orientation_name}時出錯: {str(e)}")
                     scores[orientation_name] = 1.0
-                    
-            except Exception as e:
-                print(f"評估{orientation_name}時出錯: {str(e)}")
-                scores[orientation_name] = 1.0
+        
+        end_time = time.time()
+        print(f"並行處理完成，耗時: {end_time - start_time:.2f}秒")
         
         # 找出得分最高的方向
         if scores:
@@ -158,89 +187,12 @@ def check_and_correct_image_orientation(image):
     rotation_direction = check_and_get_rotation_direction(image)
     return apply_rotation_to_image(image, rotation_direction)
 
-def process_image_data(image, process_id, image_name):
-    """處理圖像並儲存結果"""
-    from image_processor import process_image as original_process_image
-    import tempfile
-    import shutil
-    
-    # 首先檢查圖片需要旋轉的方向，但不立即旋轉
-    print(f"開始檢查圖片方向: {image_name}")
-    rotation_direction = check_and_get_rotation_direction(image)
-    print(f"檢測到需要旋轉方向: {rotation_direction}")
-    
-    # 創建臨時目錄進行處理
-    temp_dir = tempfile.mkdtemp()
-    
-    try:
-        # 使用原始圖片進行處理（不旋轉）
-        print("使用原始圖片進行區塊分割處理...")
-        original_process_image(image, temp_dir, image_name)
-        
-        # 將處理結果儲存
-        if process_id not in image_storage:
-            image_storage[process_id] = {}
-        
-        # 遍歷臨時目錄中的所有圖片檔案
-        processed_files = []
-        for filename in os.listdir(temp_dir):
-            if filename.endswith(('.jpg', '.jpeg', '.png')):
-                file_path = os.path.join(temp_dir, filename)
-                
-                # 讀取圖片
-                processed_image = cv2.imread(file_path)
-                if processed_image is not None:
-                    # 對處理後的圖片應用旋轉
-                    rotated_image = apply_rotation_to_image(processed_image, rotation_direction)
-                    
-                    # 將旋轉後的圖片編碼為二進制資料
-                    _, buffer = cv2.imencode('.jpg', rotated_image)
-                    image_data = buffer.tobytes()
-                    base64_data = base64.b64encode(image_data).decode('utf-8')
-                    
-                    # 儲存圖片資料
-                    image_storage[process_id][filename] = {
-                        'base64': base64_data,
-                        'binary': image_data,
-                        'format': 'jpg'
-                    }
-                    processed_files.append(filename)
-                else:
-                    print(f"無法讀取處理後的圖片: {filename}")
-        
-        print(f"處理完成，共處理了 {len(processed_files)} 張圖片")
-        if rotation_direction != "正確":
-            print(f"所有圖片已根據檢測結果進行旋轉: {rotation_direction}")
-        else:
-            print("圖片方向正確，無需旋轉")
-        
-        return processed_files
-        
-    finally:
-        # 清理臨時目錄
-        shutil.rmtree(temp_dir, ignore_errors=True)
-
-def get_image_description(process_id, image_name):
-    """獲取圖片的AI描述"""
-    
-    # 從session中獲取API密鑰
-    api_key = session.get('gemini_api_key', '')
-    
-    # 如果沒有設置API密鑰，返回默認訊息
-    if not api_key:
-        return [{
-            "工作": "未設置Gemini API密鑰",
-            "行業": "",
-            "時間": "",
-            "薪資": "",
-            "地點": "",
-            "聯絡方式": "",
-            "其他": "請在首頁設置API密鑰"
-        }]
+def get_image_description_for_single_image(api_key, process_id, image_name):
+    """為單張圖片獲取描述 - 用於多線程處理"""
     
     # 檢查圖片是否存在
     if process_id not in image_storage or image_name not in image_storage[process_id]:
-        return [{
+        return image_name, [{
             "工作": "圖片不存在",
             "行業": "",
             "時間": "",
@@ -251,7 +203,7 @@ def get_image_description(process_id, image_name):
         }]
     
     try:
-        # 配置API密鑰
+        # 為每個線程創建獨立的 API 配置
         genai.configure(api_key=api_key)
         MODEL = genai.GenerativeModel('gemini-2.0-flash-lite')
         
@@ -330,7 +282,7 @@ def get_image_description(process_id, image_name):
             
             # 如果沒有工作，返回一個空的提示
             if not description_json:
-                return [{
+                return image_name, [{
                     "工作": "未識別到工作資訊",
                     "行業": "",
                     "時間": "",
@@ -340,11 +292,12 @@ def get_image_description(process_id, image_name):
                     "其他": "此圖片可能不包含就業相關資訊"
                 }]
             
-            return description_json
+            print(f"處理完成圖片: {image_name}, 找到 {len(description_json)} 個工作")
+            return image_name, description_json
             
         except json.JSONDecodeError:
             # 如果JSON解析失敗，嘗試從文字中提取資訊
-            return [{
+            return image_name, [{
                 "工作": "",
                 "行業": "",
                 "時間": "",
@@ -356,7 +309,7 @@ def get_image_description(process_id, image_name):
     
     except Exception as e:
         print(f"獲取圖片描述時出錯: {str(e)}")
-        return [{
+        return image_name, [{
             "工作": "獲取描述時出錯",
             "行業": "",
             "時間": "",
@@ -365,6 +318,139 @@ def get_image_description(process_id, image_name):
             "聯絡方式": "",
             "其他": str(e)
         }]
+
+def get_descriptions_for_multiple_images(process_id, image_names):
+    """為多張圖片並行獲取描述"""
+    
+    # 從session中獲取API密鑰
+    api_key = session.get('gemini_api_key', '')
+    
+    # 如果沒有設置API密鑰，返回默認訊息
+    if not api_key:
+        return {name: [{
+            "工作": "未設置Gemini API密鑰",
+            "行業": "",
+            "時間": "",
+            "薪資": "",
+            "地點": "",
+            "聯絡方式": "",
+            "其他": "請在首頁設置API密鑰"
+        }] for name in image_names}
+    
+    print(f"開始並行處理 {len(image_names)} 張圖片的描述...")
+    start_time = time.time()
+    
+    # 使用 ThreadPoolExecutor 並行處理多張圖片
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, len(image_names))) as executor:
+        # 創建部分函數，固定 api_key 和 process_id 參數
+        get_desc_func = partial(get_image_description_for_single_image, api_key, process_id)
+        
+        # 提交所有任務
+        future_to_image = {
+            executor.submit(get_desc_func, image_name): image_name
+            for image_name in image_names
+        }
+        
+        results = {}
+        # 收集結果
+        for future in concurrent.futures.as_completed(future_to_image):
+            try:
+                image_name, description = future.result()
+                results[image_name] = description
+            except Exception as e:
+                image_name = future_to_image[future]
+                print(f"處理 {image_name} 時出錯: {str(e)}")
+                results[image_name] = [{
+                    "工作": "處理失敗",
+                    "行業": "",
+                    "時間": "",
+                    "薪資": "",
+                    "地點": "",
+                    "聯絡方式": "",
+                    "其他": str(e)
+                }]
+    
+    end_time = time.time()
+    print(f"並行描述處理完成，耗時: {end_time - start_time:.2f}秒")
+    
+    return results
+
+def process_image_data(image, process_id, image_name):
+    """處理圖像並儲存結果"""
+    from image_processor import process_image as original_process_image
+    import tempfile
+    import shutil
+    
+    # 首先檢查圖片需要旋轉的方向，但不立即旋轉
+    print(f"開始檢查圖片方向: {image_name}")
+    rotation_direction = check_and_get_rotation_direction(image)
+    print(f"檢測到需要旋轉方向: {rotation_direction}")
+    
+    # 創建臨時目錄進行處理
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        # 使用原始圖片進行處理（不旋轉）
+        print("使用原始圖片進行區塊分割處理...")
+        original_process_image(image, temp_dir, image_name)
+        
+        # 將處理結果儲存
+        if process_id not in image_storage:
+            image_storage[process_id] = {}
+        
+        # 遍歷臨時目錄中的所有圖片檔案
+        processed_files = []
+        for filename in os.listdir(temp_dir):
+            if filename.endswith(('.jpg', '.jpeg', '.png')):
+                file_path = os.path.join(temp_dir, filename)
+                
+                # 讀取圖片
+                processed_image = cv2.imread(file_path)
+                if processed_image is not None:
+                    # 對處理後的圖片應用旋轉
+                    rotated_image = apply_rotation_to_image(processed_image, rotation_direction)
+                    
+                    # 將旋轉後的圖片編碼為二進制資料
+                    _, buffer = cv2.imencode('.jpg', rotated_image)
+                    image_data = buffer.tobytes()
+                    base64_data = base64.b64encode(image_data).decode('utf-8')
+                    
+                    # 儲存圖片資料
+                    image_storage[process_id][filename] = {
+                        'base64': base64_data,
+                        'binary': image_data,
+                        'format': 'jpg'
+                    }
+                    processed_files.append(filename)
+                else:
+                    print(f"無法讀取處理後的圖片: {filename}")
+        
+        print(f"處理完成，共處理了 {len(processed_files)} 張圖片")
+        if rotation_direction != "正確":
+            print(f"所有圖片已根據檢測結果進行旋轉: {rotation_direction}")
+        else:
+            print("圖片方向正確，無需旋轉")
+        
+        return processed_files
+        
+    finally:
+        # 清理臨時目錄
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+def get_image_description(process_id, image_name):
+    """獲取圖片的AI描述（單張圖片版本，為了向後兼容）"""
+    
+    # 使用新的多線程版本來處理單張圖片
+    results = get_descriptions_for_multiple_images(process_id, [image_name])
+    return results.get(image_name, [{
+        "工作": "獲取描述失敗",
+        "行業": "",
+        "時間": "",
+        "薪資": "",
+        "地點": "",
+        "聯絡方式": "",
+        "其他": ""
+    }])
 
 def get_image_description_legacy(image_path, process_id, image_name):
     """使用Gemini API獲取圖片的文字說明（兼容舊版本）"""
@@ -534,6 +620,9 @@ def results(process_id):
     # 檢查是否為PDF（尋找帶有 _page 的處理ID）
     pdf_page_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_page")]
     
+    # 收集所有需要處理的圖片和對應的 process_id
+    batch_requests = []  # [(process_id, filename, page_num), ...]
+    
     if pdf_page_keys:
         is_pdf = True
         # 按頁碼排序
@@ -552,35 +641,8 @@ def results(process_id):
                         'format': image_data['format']
                     })
                 else:
-                    # 獲取圖片描述
-                    description = get_image_description(page_key, filename)
-                    
-                    # 檢查是否有有效的工作資訊
-                    has_valid_jobs = any(is_valid_job(job) for job in description)
-                    
-                    if has_valid_jobs:
-                        image_files.append({
-                            'filename': filename,
-                            'page': page_num,
-                            'base64': image_data['base64'],
-                            'format': image_data['format'],
-                            'description': description
-                        })
-                        
-                        # 將工作資訊加入統一列表
-                        for i, job in enumerate(description):
-                            # 只加入有效的工作資訊
-                            if is_valid_job(job):
-                                job_info = job.copy()
-                                job_info['來源圖片'] = filename  # 移除頁碼顯示，只保留檔名
-                                job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
-                                if len([j for j in description if is_valid_job(j)]) > 1:
-                                    valid_jobs = [j for j in description if is_valid_job(j)]
-                                    job_index = valid_jobs.index(job) + 1
-                                    job_info['工作編號'] = f"工作 {job_index}"
-                                else:
-                                    job_info['工作編號'] = ""
-                                all_jobs.append(job_info)
+                    # 收集需要批量處理的圖片
+                    batch_requests.append((page_key, filename, page_num, image_data))
     elif process_id in image_storage:
         # 單一圖像處理
         for filename, image_data in image_storage[process_id].items():
@@ -592,8 +654,39 @@ def results(process_id):
                     'format': image_data['format']
                 })
             else:
-                # 獲取圖片描述
-                description = get_image_description(process_id, filename)
+                # 收集需要批量處理的圖片
+                batch_requests.append((process_id, filename, '1', image_data))
+    else:
+        return "處理結果不存在", 404
+    
+    # 批量處理所有圖片描述（多線程）
+    if batch_requests:
+        print(f"準備批量處理 {len(batch_requests)} 張圖片...")
+        
+        # 按 process_id 分組，然後批量處理
+        grouped_requests = {}
+        for process_key, filename, page_num, image_data in batch_requests:
+            if process_key not in grouped_requests:
+                grouped_requests[process_key] = []
+            grouped_requests[process_key].append((filename, page_num, image_data))
+        
+        # 對每個 process_id 進行批量處理
+        all_descriptions = {}
+        for process_key, files_info in grouped_requests.items():
+            filenames = [info[0] for info in files_info]
+            descriptions = get_descriptions_for_multiple_images(process_key, filenames)
+            
+            # 將結果與頁碼和圖片資料關聯
+            for filename, page_num, image_data in files_info:
+                description = descriptions.get(filename, [{
+                    "工作": "處理失敗",
+                    "行業": "",
+                    "時間": "",
+                    "薪資": "",
+                    "地點": "",
+                    "聯絡方式": "",
+                    "其他": ""
+                }])
                 
                 # 檢查是否有有效的工作資訊
                 has_valid_jobs = any(is_valid_job(job) for job in description)
@@ -601,7 +694,7 @@ def results(process_id):
                 if has_valid_jobs:
                     image_files.append({
                         'filename': filename,
-                        'page': '1',
+                        'page': page_num,
                         'base64': image_data['base64'],
                         'format': image_data['format'],
                         'description': description
@@ -612,8 +705,13 @@ def results(process_id):
                         # 只加入有效的工作資訊
                         if is_valid_job(job):
                             job_info = job.copy()
-                            job_info['來源圖片'] = filename
-                            job_info['圖片編號'] = filename.split('.')[0]
+                            if is_pdf:
+                                job_info['來源圖片'] = filename  # 移除頁碼顯示，只保留檔名
+                                job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
+                            else:
+                                job_info['來源圖片'] = filename
+                                job_info['圖片編號'] = filename.split('.')[0]
+                            
                             if len([j for j in description if is_valid_job(j)]) > 1:
                                 valid_jobs = [j for j in description if is_valid_job(j)]
                                 job_index = valid_jobs.index(job) + 1
@@ -621,8 +719,6 @@ def results(process_id):
                             else:
                                 job_info['工作編號'] = ""
                             all_jobs.append(job_info)
-    else:
-        return "處理結果不存在", 404
     
     # 對圖片按工作數量從小到大排序
     def count_valid_jobs(image):
@@ -706,6 +802,7 @@ def download_results(process_id):
     all_jobs = []
     all_images = []
     debug_images = []
+    batch_download_requests = []
     
     if pdf_page_keys:
         # PDF情況
@@ -723,36 +820,8 @@ def download_results(process_id):
                         'data': image_data
                     })
                 else:
-                    # 獲取圖片描述
-                    description = get_image_description(page_key, filename)
-                    
-                    # 檢查是否有有效的工作資訊 - 只有有效工作的圖片才會被包含
-                    has_valid_jobs = any(is_valid_job(job) for job in description)
-                    
-                    if has_valid_jobs:
-                        # 只包含在頁面上顯示的圖片
-                        all_images.append({
-                            'filename': filename,
-                            'page': page_num,
-                            'data': image_data,
-                            'description': description
-                        })
-                        
-                        # 收集工作資訊 - 只包含有效的工作
-                        if isinstance(description, list):
-                            for i, job in enumerate(description):
-                                if is_valid_job(job):
-                                    job_info = job.copy()
-                                    job_info['來源圖片'] = filename
-                                    job_info['頁碼'] = page_num
-                                    job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
-                                    if len([j for j in description if is_valid_job(j)]) > 1:
-                                        valid_jobs = [j for j in description if is_valid_job(j)]
-                                        job_index = valid_jobs.index(job) + 1
-                                        job_info['工作編號'] = f"工作 {job_index}"
-                                    else:
-                                        job_info['工作編號'] = ""
-                                    all_jobs.append(job_info)
+                    # 收集需要批量處理的圖片
+                    batch_download_requests.append((page_key, filename, page_num, image_data))
     else:
         # 單一圖像情況
         for filename, image_data in image_storage[process_id].items():
@@ -764,8 +833,36 @@ def download_results(process_id):
                     'data': image_data
                 })
             else:
-                # 獲取圖片描述
-                description = get_image_description(process_id, filename)
+                # 收集需要批量處理的圖片
+                batch_download_requests.append((process_id, filename, '1', image_data))
+    
+    # 批量處理描述（使用與 results 函數相同的邏輯）
+    if batch_download_requests:
+        print(f"開始批量處理下載的 {len(batch_download_requests)} 張圖片...")
+        
+        # 按 process_id 分組，然後批量處理
+        grouped_download_requests = {}
+        for process_key, filename, page_num, image_data in batch_download_requests:
+            if process_key not in grouped_download_requests:
+                grouped_download_requests[process_key] = []
+            grouped_download_requests[process_key].append((filename, page_num, image_data))
+        
+        # 對每個 process_id 進行批量處理
+        for process_key, files_info in grouped_download_requests.items():
+            filenames = [info[0] for info in files_info]
+            descriptions = get_descriptions_for_multiple_images(process_key, filenames)
+            
+            # 將結果與頁碼和圖片資料關聯
+            for filename, page_num, image_data in files_info:
+                description = descriptions.get(filename, [{
+                    "工作": "處理失敗",
+                    "行業": "",
+                    "時間": "",
+                    "薪資": "",
+                    "地點": "",
+                    "聯絡方式": "",
+                    "其他": ""
+                }])
                 
                 # 檢查是否有有效的工作資訊 - 只有有效工作的圖片才會被包含
                 has_valid_jobs = any(is_valid_job(job) for job in description)
@@ -774,7 +871,7 @@ def download_results(process_id):
                     # 只包含在頁面上顯示的圖片
                     all_images.append({
                         'filename': filename,
-                        'page': '1',
+                        'page': page_num,
                         'data': image_data,
                         'description': description
                     })
@@ -785,8 +882,11 @@ def download_results(process_id):
                             if is_valid_job(job):
                                 job_info = job.copy()
                                 job_info['來源圖片'] = filename
-                                job_info['頁碼'] = '1'
-                                job_info['圖片編號'] = filename.split('.')[0]
+                                job_info['頁碼'] = page_num
+                                if page_num != '1':
+                                    job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
+                                else:
+                                    job_info['圖片編號'] = filename.split('.')[0]
                                 if len([j for j in description if is_valid_job(j)]) > 1:
                                     valid_jobs = [j for j in description if is_valid_job(j)]
                                     job_index = valid_jobs.index(job) + 1
