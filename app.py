@@ -556,9 +556,12 @@ def upload_file():
         process_dir = os.path.join(app.config['UPLOAD_FOLDER'], process_id)
         os.makedirs(process_dir, exist_ok=True)
         
-        # 保存上傳的檔案
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(process_dir, filename)
+        # 保留原始檔名，並產生唯一的儲存檔名
+        original_filename = file.filename
+        _, file_extension = os.path.splitext(original_filename)
+        # 使用 UUID 作為儲存的檔名，但保留原始副檔名
+        safe_filename = str(uuid.uuid4()) + file_extension
+        file_path = os.path.join(process_dir, safe_filename)
         file.save(file_path)
         
         # 處理檔案
@@ -567,7 +570,8 @@ def upload_file():
                 # PDF 處理
                 import fitz
                 pdf_document = fitz.open(file_path)
-                pdf_base_name = os.path.splitext(filename)[0]
+                # 使用原始檔名（不含副檔名）作為基礎名稱
+                pdf_base_name = os.path.splitext(original_filename)[0]
                 
                 for page_num in range(len(pdf_document)):
                     page = pdf_document.load_page(page_num)
@@ -586,6 +590,7 @@ def upload_file():
                         image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
                     
                     if image is not None:
+                        # 使用原始檔名組合頁面圖片名稱
                         image_name = f"{pdf_base_name}_page{page_num + 1}"
                         page_process_id = f"{process_id}_page{page_num + 1}"
                         process_image_data(image, page_process_id, image_name)
@@ -595,7 +600,8 @@ def upload_file():
                 # 單一圖像處理
                 image = cv2.imread(file_path)
                 if image is not None:
-                    image_name = os.path.splitext(filename)[0]
+                    # 使用原始檔名（不含副檔名）
+                    image_name = os.path.splitext(original_filename)[0]
                     process_image_data(image, process_id, image_name)
             
             # 重定向到結果頁面
