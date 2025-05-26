@@ -50,7 +50,7 @@ def evaluate_single_orientation(api_key, orientation_name, rotated_image):
         # 為每個線程創建獨立的 API 配置
         genai.configure(api_key=api_key)
         MODEL = genai.GenerativeModel(
-            'gemini-2.0-flash-001',
+            'gemini-2.0-flash-001',  # 仍然建議使用較強模型以確保方向判斷的準確性
             generation_config={
                 "temperature": 0.0,
                 "top_k": 1,
@@ -63,13 +63,17 @@ def evaluate_single_orientation(api_key, orientation_name, rotated_image):
         pil_image = Image.fromarray(image_rgb)
         
         # 調用Gemini API進行評分
-        prompt = f"""你現在是一個專門判斷圖片方向的AI助手。請仔細觀察這張圖片中的文字閱讀方向。
+        prompt = f"""你是一位專業的報紙排版分析師。請判斷這張圖片中的報紙內容是否為正常的閱讀方向。主要依據以下幾點：
+1.  **標題方向**：報紙的大標題是否水平且易讀？
+2.  **欄位方向**：內文的文字欄位是否垂直排列，且文字是水平的？
+3.  **圖片方向**：如果圖片中有可辨識的人物或物體，其方向是否自然？
+4.  **整體佈局**：報紙的整體版面配置是否符合常見的閱讀習慣？
 
-請給這張圖片的文字可讀性打分，分數範圍是1到10（可以包含小數點，例如7.5）：
-- 10分：文字完全正確，可以正常閱讀
-- 7-9分：文字基本正確，稍有傾斜但可讀
-- 4-6分：文字有明顯問題，但還能勉強辨識
-- 1-3分：文字完全顛倒或側向，無法正常閱讀
+請給這個方向的「自然閱讀程度」打分，分數範圍 1 到 10：
+- 10分：完全正常，所有元素方向正確。
+- 7-9分：基本正常，可能有輕微傾斜但整體閱讀方向正確。
+- 4-6分：方向有明顯問題，如文字是垂直的或倒置的，但仍能辨識出部分內容。
+- 1-3分：完全錯誤，無法辨識為正常的報紙閱讀方向。
 
 請只回覆一個數字分數（例如：8.5），不要加任何其他說明文字。"""
         
@@ -140,9 +144,34 @@ def check_and_get_rotation_direction(image):
         
         # 找出得分最高的方向
         if scores:
-            best_orientation = max(scores, key=scores.get)
-            best_score = scores[best_orientation]
+            # 獲取所有方向的最高分
+            max_score = 0
+            for score_val in scores.values():
+                if score_val is not None:
+                    max_score = max(max_score, score_val)
             
+            # 檢查 "正確" 方向的分數是否等於最高分，且 "正確" 方向的分數不為 None
+            correct_score = scores.get("正確")
+            if correct_score is not None and correct_score == max_score:
+                print(f"各方向得分: {scores}")
+                print(f"\'正確\' 方向得分為 {correct_score}，與最高分相同，優先選擇 \'正確\' 方向")
+                return "正確"
+            
+            # 如果 "正確" 方向不是最高分，或分數為 None，則找出實際最高分的方向
+            best_orientation = "正確" # 預設值
+            current_max_score = 0.0 # 處理 scores 可能包含 None 的情況
+            for orientation_name, score_val in scores.items():
+                if score_val is not None and score_val > current_max_score:
+                    current_max_score = score_val
+                    best_orientation = orientation_name
+                elif score_val is not None and score_val == current_max_score:
+                    # 如果分數相同，且當前最佳方向不是 "正確"，則比較是否為 "正確"
+                    if best_orientation != "正確" and orientation_name == "正確":
+                        best_orientation = "正確"
+            
+            best_score = scores.get(best_orientation, 0.0) # 確保 best_score 有值
+            if best_score is None: best_score = 0.0
+
             print(f"各方向得分: {scores}")
             print(f"最佳方向: {best_orientation} (得分: {best_score})")
             
