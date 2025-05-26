@@ -548,12 +548,12 @@ def set_api_key():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files:
+    if 'files' not in request.files:
         flash('未選擇檔案', 'danger')
         return redirect(url_for('index'))
     
-    file = request.files['file']
-    if file.filename == '':
+    files = request.files.getlist('files')
+    if not files or all(file.filename == '' for file in files):
         flash('未選擇檔案', 'danger')
         return redirect(url_for('index'))
     
@@ -562,24 +562,50 @@ def upload_file():
         flash('請先設置Gemini API密鑰', 'warning')
         return redirect(url_for('index'))
     
-    if file and allowed_file(file.filename):
-        # 創建唯一的處理ID
-        process_id = str(uuid.uuid4())
+    # 檢查檔案數量限制
+    MAX_FILES = 10
+    if len(files) > MAX_FILES:
+        flash(f'一次最多只能上傳 {MAX_FILES} 個檔案', 'danger')
+        return redirect(url_for('index'))
+    
+    # 檢查所有檔案格式
+    valid_files = []
+    for file in files:
+        if file.filename != '' and allowed_file(file.filename):
+            valid_files.append(file)
+        elif file.filename != '':
+            flash(f'檔案 "{file.filename}" 格式不支援', 'danger')
+            return redirect(url_for('index'))
+    
+    if not valid_files:
+        flash('沒有有效的檔案', 'danger')
+        return redirect(url_for('index'))
+    
+    # 創建唯一的處理ID
+    process_id = str(uuid.uuid4())
+    
+    # 創建處理目錄
+    process_dir = os.path.join(app.config['UPLOAD_FOLDER'], process_id)
+    os.makedirs(process_dir, exist_ok=True)
+    
+    processed_files = []  # 記錄已處理的檔案，用於錯誤時清理
+    
+    try:
+        file_counter = 0  # 用於為不同檔案創建唯一的處理ID
         
-        # 創建處理目錄
-        process_dir = os.path.join(app.config['UPLOAD_FOLDER'], process_id)
-        os.makedirs(process_dir, exist_ok=True)
-        
-        # 保留原始檔名，並產生唯一的儲存檔名
-        original_filename = file.filename
-        _, file_extension = os.path.splitext(original_filename)
-        # 使用 UUID 作為儲存的檔名，但保留原始副檔名
-        safe_filename = str(uuid.uuid4()) + file_extension
-        file_path = os.path.join(process_dir, safe_filename)
-        file.save(file_path)
-        
-        # 處理檔案
-        try:
+        for file in valid_files:
+            file_counter += 1
+            
+            # 保留原始檔名，並產生唯一的儲存檔名
+            original_filename = file.filename
+            _, file_extension = os.path.splitext(original_filename)
+            # 使用 UUID 作為儲存的檔名，但保留原始副檔名
+            safe_filename = str(uuid.uuid4()) + file_extension
+            file_path = os.path.join(process_dir, safe_filename)
+            file.save(file_path)
+            processed_files.append(file_path)
+            
+            # 處理檔案
             if file_path.lower().endswith('.pdf'):
                 # PDF 處理
                 import fitz
@@ -604,9 +630,15 @@ def upload_file():
                         image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
                     
                     if image is not None:
-                        # 使用原始檔名組合頁面圖片名稱
-                        image_name = f"{pdf_base_name}_page{page_num + 1}"
-                        page_process_id = f"{process_id}_page{page_num + 1}"
+                        # 為多檔案場景調整處理ID和圖片名稱
+                        if len(valid_files) > 1:
+                            # 多檔案：包含檔案編號
+                            image_name = f"file{file_counter:02d}_{pdf_base_name}_page{page_num + 1}"
+                            page_process_id = f"{process_id}_file{file_counter:02d}_page{page_num + 1}"
+                        else:
+                            # 單檔案：保持原有邏輯
+                            image_name = f"{pdf_base_name}_page{page_num + 1}"
+                            page_process_id = f"{process_id}_page{page_num + 1}"
                         process_image_data(image, page_process_id, image_name)
                 
                 pdf_document.close()
@@ -614,26 +646,37 @@ def upload_file():
                 # 單一圖像處理
                 image = cv2.imread(file_path)
                 if image is not None:
-                    # 使用原始檔名（不含副檔名）
-                    image_name = os.path.splitext(original_filename)[0]
-                    process_image_data(image, process_id, image_name)
-            
-            # 重定向到結果頁面
-            return redirect(url_for('results', process_id=process_id))
-            
-        except Exception as e:
-            flash(f'處理檔案時發生錯誤: {str(e)}', 'danger')
-            return redirect(url_for('index'))
+                    # 為多檔案場景調整處理ID和圖片名稱
+                    if len(valid_files) > 1:
+                        # 多檔案：包含檔案編號
+                        image_name = f"file{file_counter:02d}_{os.path.splitext(original_filename)[0]}"
+                        image_process_id = f"{process_id}_file{file_counter:02d}"
+                    else:
+                        # 單檔案：保持原有邏輯
+                        image_name = os.path.splitext(original_filename)[0]
+                        image_process_id = process_id
+                    process_image_data(image, image_process_id, image_name)
         
-        finally:
-            # 清理上傳的檔案
+        # 處理成功，顯示成功訊息
+        if len(valid_files) > 1:
+            flash(f'成功處理了 {len(valid_files)} 個檔案', 'success')
+        else:
+            flash('檔案處理完成', 'success')
+        
+        # 重定向到結果頁面
+        return redirect(url_for('results', process_id=process_id))
+        
+    except Exception as e:
+        flash(f'處理檔案時發生錯誤: {str(e)}', 'danger')
+        return redirect(url_for('index'))
+    
+    finally:
+        # 清理上傳的檔案
+        for file_path in processed_files:
             if os.path.exists(file_path):
                 os.remove(file_path)
-            if os.path.exists(process_dir):
-                shutil.rmtree(process_dir, ignore_errors=True)
-    
-    flash('不支援的檔案格式', 'danger')
-    return redirect(url_for('index'))
+        if os.path.exists(process_dir):
+            shutil.rmtree(process_dir, ignore_errors=True)
 
 def is_valid_job(job):
     """檢查是否為有效的工作資訊"""
@@ -666,8 +709,9 @@ def results(process_id):
     all_jobs = []  # 統一的工作列表
     is_pdf = False
     
-    # 檢查是否為PDF（尋找帶有 _page 的處理ID）
+    # 檢查是否為PDF或多檔案（尋找帶有 _page 或 _file 的處理ID）
     pdf_page_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_page")]
+    multi_file_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_file")]
     
     # 收集所有需要處理的圖片和對應的 process_id
     batch_requests = []  # [(process_id, filename, page_num), ...]
@@ -692,6 +736,37 @@ def results(process_id):
                 else:
                     # 收集需要批量處理的圖片
                     batch_requests.append((page_key, filename, page_num, image_data))
+    elif multi_file_keys:
+        # 多檔案處理
+        # 按檔案編號排序
+        multi_file_keys.sort(key=lambda x: x.split('_file')[-1])
+        
+        for file_key in multi_file_keys:
+            # 解析檔案編號和可能的頁碼
+            key_parts = file_key.replace(f"{process_id}_", "").split('_')
+            if 'page' in file_key:
+                # 多檔案PDF的情況：file01_page1
+                file_part = key_parts[0]  # file01
+                page_part = key_parts[1]  # page1
+                page_num = page_part.replace('page', '')
+                file_display = f"{file_part}_page{page_num}"
+            else:
+                # 多檔案圖片的情況：file01
+                file_display = key_parts[0]
+                page_num = file_display
+            
+            for filename, image_data in image_storage[file_key].items():
+                # 檢查是否為偵錯圖像
+                if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                    debug_files.append({
+                        'filename': filename,
+                        'page': file_display,
+                        'base64': image_data['base64'],
+                        'format': image_data['format']
+                    })
+                else:
+                    # 收集需要批量處理的圖片
+                    batch_requests.append((file_key, filename, file_display, image_data))
     elif process_id in image_storage:
         # 單一圖像處理
         for filename, image_data in image_storage[process_id].items():
@@ -816,8 +891,53 @@ def results(process_id):
         else:
             return 5
     
+    # 定義頁碼排序函數，處理多檔案情況
+    def get_page_sort_key(page_str):
+        """處理不同格式的頁碼字符串，返回可排序的元組"""
+        try:
+            # 如果是純數字，直接轉換
+            return (0, int(page_str))
+        except ValueError:
+            # 如果包含文字，嘗試解析
+            if 'file' in page_str and '_page' in page_str:
+                # 格式：file01_page1
+                parts = page_str.split('_page')
+                file_part = parts[0]  # file01
+                page_part = parts[1] if len(parts) > 1 else '1'
+                
+                # 提取檔案編號
+                file_num = 0
+                if 'file' in file_part:
+                    try:
+                        file_num = int(file_part.replace('file', ''))
+                    except ValueError:
+                        file_num = 0
+                
+                # 提取頁碼
+                try:
+                    page_num = int(page_part)
+                except ValueError:
+                    page_num = 1
+                
+                return (file_num, page_num)
+            elif 'file' in page_str:
+                # 格式：file01
+                try:
+                    file_num = int(page_str.replace('file', ''))
+                    return (file_num, 0)  # 單頁圖片，頁碼為0
+                except ValueError:
+                    return (999, 0)  # 無法解析的放在最後
+            else:
+                # 其他格式，嘗試提取數字
+                import re
+                numbers = re.findall(r'\d+', page_str)
+                if numbers:
+                    return (0, int(numbers[0]))
+                else:
+                    return (999, 999)  # 無法解析的放在最後
+    
     # 先按頁碼排序，再按步驟順序排序
-    debug_files.sort(key=lambda x: (int(x['page']), get_step_order(x)))
+    debug_files.sort(key=lambda x: (get_page_sort_key(x['page']), get_step_order(x)))
     
     return render_template('results.html', 
                           process_id=process_id, 
@@ -849,7 +969,18 @@ def view_image(process_id, filename):
             response.headers['Content-Type'] = f'image/{format_type}'
             return response
     
-        return "圖像不存在", 404
+    # 檢查多檔案
+    multi_file_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_file")]
+    for file_key in multi_file_keys:
+        if filename in image_storage[file_key]:
+            image_data = image_storage[file_key][filename]['binary']
+            format_type = image_storage[file_key][filename]['format']
+            
+            response = make_response(image_data)
+            response.headers['Content-Type'] = f'image/{format_type}'
+            return response
+    
+    return "圖像不存在", 404
 
 @app.route('/download/<process_id>')
 def download_results(process_id):
@@ -865,10 +996,11 @@ def download_results(process_id):
     # 創建ZIP檔案
     memory_file = io.BytesIO()
     
-    # 檢查是否為PDF
+    # 檢查是否為PDF或多檔案
     pdf_page_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_page")]
+    multi_file_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_file")]
     
-    if not pdf_page_keys and process_id not in image_storage:
+    if not pdf_page_keys and not multi_file_keys and process_id not in image_storage:
         return "處理結果不存在", 404
     
     # 收集所有工作資訊 - 使用與results函數相同的過濾邏輯
@@ -895,6 +1027,35 @@ def download_results(process_id):
                 else:
                     # 收集需要批量處理的圖片
                     batch_download_requests.append((page_key, filename, page_num, image_data))
+    elif multi_file_keys:
+        # 多檔案情況
+        multi_file_keys.sort(key=lambda x: x.split('_file')[-1])
+        
+        for file_key in multi_file_keys:
+            # 解析檔案編號和可能的頁碼
+            key_parts = file_key.replace(f"{process_id}_", "").split('_')
+            if 'page' in file_key:
+                # 多檔案PDF的情況
+                file_part = key_parts[0]  # file01
+                page_part = key_parts[1]  # page1
+                page_num = page_part.replace('page', '')
+                file_display = f"{file_part}_page{page_num}"
+            else:
+                # 多檔案圖片的情況
+                file_display = key_parts[0]
+                page_num = file_display
+            
+            for filename, image_data in image_storage[file_key].items():
+                if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                    # 處理步驟圖片
+                    debug_images.append({
+                        'filename': filename,
+                        'page': file_display,
+                        'data': image_data
+                    })
+                else:
+                    # 收集需要批量處理的圖片
+                    batch_download_requests.append((file_key, filename, file_display, image_data))
     else:
         # 單一圖像情況
         for filename, image_data in image_storage[process_id].items():
@@ -1224,8 +1385,9 @@ def send_to_spreadsheet(process_id):
         # 收集職缺資料 - 使用與 results 和 download 相同的邏輯
         all_jobs = []
         
-        # 檢查是否為PDF
+        # 檢查是否為PDF或多檔案
         pdf_page_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_page")]
+        multi_file_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_file")]
         
         if pdf_page_keys:
             # PDF情況
@@ -1261,6 +1423,58 @@ def send_to_spreadsheet(process_id):
                                 job_info['來源圖片'] = filename
                                 job_info['頁碼'] = page_num
                                 job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
+                                if len([j for j in description if is_valid_job(j)]) > 1:
+                                    valid_jobs = [j for j in description if is_valid_job(j)]
+                                    job_index = valid_jobs.index(job) + 1
+                                    job_info['工作編號'] = f"工作 {job_index}"
+                                else:
+                                                                    job_info['工作編號'] = ""
+                            all_jobs.append(job_info)
+        elif multi_file_keys:
+            # 多檔案情況
+            multi_file_keys.sort(key=lambda x: x.split('_file')[-1])
+            
+            for file_key in multi_file_keys:
+                # 解析檔案編號和可能的頁碼
+                key_parts = file_key.replace(f"{process_id}_", "").split('_')
+                if 'page' in file_key:
+                    # 多檔案PDF的情況
+                    file_part = key_parts[0]  # file01
+                    page_part = key_parts[1]  # page1
+                    page_num = page_part.replace('page', '')
+                    file_display = f"{file_part}_page{page_num}"
+                else:
+                    # 多檔案圖片的情況
+                    file_display = key_parts[0]
+                    page_num = file_display
+                
+                for filename, image_data in image_storage[file_key].items():
+                    # 跳過偵錯圖像
+                    if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                        continue
+                    
+                    # MODIFIED: 直接從 image_storage 獲取描述
+                    description = []
+                    if file_key in image_storage and \
+                       filename in image_storage[file_key] and \
+                       'description' in image_storage[file_key][filename]:
+                        description = image_storage[file_key][filename]['description']
+                    else:
+                        print(f"警告: 在 send_to_spreadsheet 中找不到圖片 {filename} (file_key: {file_key}) 的描述，將使用空描述。")
+                        description = [{
+                            "工作": "描述未找到",
+                            "行業": "", "時間": "", "薪資": "",
+                            "地點": "", "聯絡方式": "", "其他": ""
+                        }]
+                    
+                    # 收集有效的工作資訊
+                    if isinstance(description, list):
+                        for i, job in enumerate(description):
+                            if is_valid_job(job):
+                                job_info = job.copy()
+                                job_info['來源圖片'] = filename
+                                job_info['頁碼'] = page_num
+                                job_info['圖片編號'] = f"{file_display}_{filename.split('.')[0]}"
                                 if len([j for j in description if is_valid_job(j)]) > 1:
                                     valid_jobs = [j for j in description if is_valid_job(j)]
                                     job_index = valid_jobs.index(job) + 1

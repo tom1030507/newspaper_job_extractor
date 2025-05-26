@@ -2,32 +2,58 @@
 document.addEventListener('DOMContentLoaded', function() {
     const uploadForm = document.getElementById('upload-form');
     const loadingContainer = document.getElementById('loading-container');
-    const fileInput = document.getElementById('file');
+    const fileInput = document.getElementById('files');
+    const fileListContainer = document.getElementById('file-list');
 
     // 表單提交處理
     uploadForm.addEventListener('submit', function(e) {
-        const file = fileInput.files[0];
+        const files = fileInput.files;
         
         // 檢查是否選擇了文件
-        if (!file) {
+        if (!files || files.length === 0) {
             e.preventDefault();
             alert('請選擇要上傳的檔案！');
             return;
         }
         
-        // 檢查文件類型
-        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-        if (!allowedTypes.includes(file.type)) {
+        // 檢查文件數量限制 (最多10個檔案)
+        const maxFiles = 10;
+        if (files.length > maxFiles) {
             e.preventDefault();
-            alert('請選擇支持的檔案格式：JPG, JPEG, PNG, PDF');
+            alert(`一次最多只能選擇 ${maxFiles} 個檔案！`);
             return;
         }
         
-        // 檢查文件大小 (限制為50MB)
+        // 檢查每個文件
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
         const maxSize = 50 * 1024 * 1024; // 50MB in bytes
-        if (file.size > maxSize) {
+        let totalSize = 0;
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            
+            // 檢查文件類型
+            if (!allowedTypes.includes(file.type)) {
+                e.preventDefault();
+                alert(`檔案「${file.name}」的格式不支援。請選擇支持的檔案格式：JPG, JPEG, PNG, PDF`);
+                return;
+            }
+            
+            // 檢查單個文件大小
+            if (file.size > maxSize) {
+                e.preventDefault();
+                alert(`檔案「${file.name}」大小超過50MB限制！`);
+                return;
+            }
+            
+            totalSize += file.size;
+        }
+        
+        // 檢查總文件大小 (限制為200MB)
+        const maxTotalSize = 200 * 1024 * 1024; // 200MB in bytes
+        if (totalSize > maxTotalSize) {
             e.preventDefault();
-            alert('檔案大小不能超過50MB！');
+            alert('所有檔案的總大小不能超過200MB！');
             return;
         }
         
@@ -37,10 +63,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 檔案選擇變化處理
     fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            console.log('選擇的檔案:', file.name, '大小:', formatFileSize(file.size), '類型:', file.type);
-        }
+        const files = e.target.files;
+        updateFileList(files);
     });
 });
 
@@ -79,6 +103,50 @@ function preventDefaultKeys(e) {
         e.preventDefault();
         return false;
     }
+}
+
+// 更新檔案列表顯示
+function updateFileList(files) {
+    const fileListContainer = document.getElementById('file-list');
+    
+    if (!files || files.length === 0) {
+        fileListContainer.innerHTML = '';
+        return;
+    }
+    
+    let html = '<div class="selected-files"><h6>已選擇的檔案：</h6><ul class="list-group list-group-flush">';
+    let totalSize = 0;
+    
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        totalSize += file.size;
+        
+        // 判斷檔案圖示
+        let icon = '📄';
+        if (file.type.includes('image')) {
+            icon = '🖼️';
+        } else if (file.type.includes('pdf')) {
+            icon = '📑';
+        }
+        
+        html += `
+            <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                <div>
+                    <span>${icon}</span>
+                    <span class="ms-2">${file.name}</span>
+                </div>
+                <span class="badge bg-secondary rounded-pill">${formatFileSize(file.size)}</span>
+            </li>
+        `;
+    }
+    
+    html += '</ul>';
+    html += `<div class="mt-2 text-muted small">總共 ${files.length} 個檔案，總大小：${formatFileSize(totalSize)}</div>`;
+    html += '</div>';
+    
+    fileListContainer.innerHTML = html;
+    
+    console.log(`選擇了 ${files.length} 個檔案，總大小：${formatFileSize(totalSize)}`);
 }
 
 // 格式化檔案大小顯示

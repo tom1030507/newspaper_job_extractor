@@ -59,9 +59,10 @@
                     <h5 class="card-title">上傳檔案</h5>
                     <form id="upload-form" action="/upload" method="post" enctype="multipart/form-data">
                         <div class="mb-3">
-                            <label for="file" class="form-label">選擇報紙圖像或PDF文件</label>
-                            <input type="file" class="form-control" id="file" name="file" accept=".jpg,.jpeg,.png,.pdf" required>
-                            <div class="form-text">支持的檔案格式：JPG, JPEG, PNG, PDF</div>
+                            <label for="files" class="form-label">選擇報紙圖像或PDF文件</label>
+                            <input type="file" class="form-control" id="files" name="files" accept=".jpg,.jpeg,.png,.pdf" multiple required>
+                            <div class="form-text">支持的檔案格式：JPG, JPEG, PNG, PDF。可一次選取多個檔案。</div>
+                            <div id="file-list" class="mt-2"></div>
                         </div>
                         <button type="submit" class="btn btn-primary">開始提取</button>
                     </form>
@@ -69,7 +70,7 @@
             </div>
             
             <div class="footer text-center">
-                <p>© 2024 報紙工作廣告區塊提取工具</p>
+                <p>© 2025 報紙工作廣告區塊提取工具</p>
             </div>
         </div>
     </div>

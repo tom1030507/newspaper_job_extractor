@@ -192,17 +192,26 @@
                             {% if pages|length > 1 %}
                                 <!-- 頁面選擇標籤 -->
                                 <ul class="nav nav-pills justify-content-center mb-4" id="pageTab" role="tablist">
-                                    {% for page_num in pages.keys()|sort|map('int')|list %}
+                                    {% for page_key in pages.keys()|sort %}
                                         <li class="nav-item" role="presentation">
                                             <button class="nav-link {{ 'active' if loop.first else '' }}" 
-                                                    id="page{{ page_num }}-tab" 
+                                                    id="page{{ loop.index }}-tab" 
                                                     data-bs-toggle="pill" 
-                                                    data-bs-target="#page{{ page_num }}" 
+                                                    data-bs-target="#page{{ loop.index }}" 
                                                     type="button" 
                                                     role="tab" 
-                                                    aria-controls="page{{ page_num }}" 
+                                                    aria-controls="page{{ loop.index }}" 
                                                     aria-selected="{{ 'true' if loop.first else 'false' }}">
-                                                <i class="bi bi-file-earmark-text"></i> 第 {{ page_num }} 頁
+                                                <i class="bi bi-file-earmark-text"></i> 
+                                                {% if page_key.isdigit() %}
+                                                    第 {{ page_key }} 頁
+                                                {% elif 'file' in page_key and '_page' in page_key %}
+                                                    {{ page_key.replace('file', '檔案').replace('_page', ' 第') }}頁
+                                                {% elif 'file' in page_key %}
+                                                    {{ page_key.replace('file', '檔案') }}
+                                                {% else %}
+                                                    {{ page_key }}
+                                                {% endif %}
                                             </button>
                                         </li>
                                     {% endfor %}
@@ -210,13 +219,13 @@
                                 
                                 <!-- 頁面內容 -->
                                 <div class="tab-content" id="pageTabContent">
-                                    {% for page_num in pages.keys()|sort|map('int')|list %}
+                                    {% for page_key in pages.keys()|sort %}
                                         <div class="tab-pane fade {{ 'show active' if loop.first else '' }}" 
-                                             id="page{{ page_num }}" 
+                                             id="page{{ loop.index }}" 
                                              role="tabpanel" 
-                                             aria-labelledby="page{{ page_num }}-tab">
+                                             aria-labelledby="page{{ loop.index }}-tab">
                                             <div class="row">
-                                                {% for debug in pages[page_num|string] %}
+                                                {% for debug in pages[page_key] %}
                                                     {% set step_number = 
                                                         1 if 'original' in debug.filename
                                                         else 2 if 'mask_unprocessed' in debug.filename
