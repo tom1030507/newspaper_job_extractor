@@ -1,6 +1,16 @@
 // 全局變量
 let imageData = {};
 
+// 測試函數 - 確保函數可以被正常調用
+function testSpreadsheetFunction() {
+    console.log('🧪 測試函數被調用！');
+    alert('測試成功！函數可以正常調用。');
+}
+
+// 我們將在初始化後設置全域函數
+
+window.testSpreadsheetFunction = testSpreadsheetFunction;
+
 // 初始化函數
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Results page 初始化中...');
@@ -12,6 +22,18 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ 圖片資料載入完成，共 ' + Object.keys(imageData).length + ' 張圖片');
     }
     
+    // 檢查重要的DOM元素
+    console.log('🔍 檢查 DOM 元素...');
+    const appsScriptUrl = document.getElementById('appsScriptUrl');
+    const errorMessage = document.getElementById('errorMessage');
+    const sendBtn = document.getElementById('sendToSpreadsheetBtn');
+    const processIdElement = window.processId;
+    
+    console.log('📄 appsScriptUrl 元素:', appsScriptUrl ? '✅ 存在' : '❌ 不存在');
+    console.log('📄 errorMessage 元素:', errorMessage ? '✅ 存在' : '❌ 不存在');
+    console.log('📄 sendBtn 元素:', sendBtn ? '✅ 存在' : '❌ 不存在');
+    console.log('📄 processId:', processIdElement || '❌ 未設置');
+    
     // 初始化現代化功能
     initModernFeatures();
     
@@ -21,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化下載模態框
     initDownloadModal();
     
-    // 初始化 Google Spreadsheet 模態框
+    // 初始化 Google Sheets 模態框
     initSpreadsheetModal();
     
     // 初始化表格互動功能
@@ -39,20 +61,44 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化通知系統
     initNotificationSystem();
     
-    // 當 Google Spreadsheet 模態框顯示時重置表單
+    // 當 Google Sheets 模態框顯示時重置表單
     const spreadsheetModal = document.getElementById('spreadsheetModal');
     if (spreadsheetModal) {
         spreadsheetModal.addEventListener('show.bs.modal', function () {
+            console.log('📋 Spreadsheet 模態框正在打開，重置表單...');
             resetSpreadsheetModal();
+        });
+    }
+    
+    // 測試按鈕事件
+    if (sendBtn) {
+        sendBtn.addEventListener('click', function(e) {
+            console.log('🖱️ sendToSpreadsheetBtn 被點擊了！');
+            console.log('📍 事件對象:', e);
         });
     }
     
     console.log('🎉 Results page 初始化完成!');
     
+    // 將 sendToSpreadsheet 函數暴露到全域作用域，以供HTML onclick 使用
+    window.sendToSpreadsheet = sendToSpreadsheet;
+    console.log('🌍 sendToSpreadsheet 函數已暴露到全域作用域');
+    
+    // 設置全域錯誤處理器
+    window.addEventListener('error', function(event) {
+        console.error('🚨 全域 JavaScript 錯誤:', event.error);
+        showNotification('發生未預期的錯誤，請重新載入頁面或聯繫支援', 'error', 10000);
+    });
+    
+    window.addEventListener('unhandledrejection', function(event) {
+        console.error('🚨 未處理的 Promise 拒絕:', event.reason);
+        showNotification('操作失敗，請重試', 'error', 8000);
+    });
+    
     // 顯示歡迎通知
     setTimeout(() => {
         showNotification(
-            '頁面載入完成！您可以查看分析結果、下載資料或創建 Google Spreadsheet。',
+            '頁面載入完成！您可以查看分析結果、下載資料或創建 Google Sheets。',
             'success',
             5000
         );
@@ -264,7 +310,7 @@ function downloadSelected() {
     window.location.href = downloadUrl;
 }
 
-// Google Spreadsheet 相關函數
+// Google Sheets 相關函數
 function resetSpreadsheetModal() {
     // 顯示主要內容區域
     document.getElementById('mainContent').classList.remove('d-none');
@@ -286,51 +332,108 @@ function resetSpreadsheetModal() {
 }
 
 async function sendToSpreadsheet() {
-    const appsScriptUrl = document.getElementById('appsScriptUrl').value.trim();
+    console.log('📤 開始發送到 Google Sheets...');
+    
+    // 檢查必要的DOM元素是否存在
+    const appsScriptUrlElement = document.getElementById('appsScriptUrl');
+    const errorMessageElement = document.getElementById('errorMessage');
+    
+    if (!appsScriptUrlElement) {
+        console.error('❌ 找不到 appsScriptUrl 輸入框');
+        alert('系統錯誤：找不到輸入框元素，請重新載入頁面');
+        return;
+    }
+    
+    if (!errorMessageElement) {
+        console.error('❌ 找不到 errorMessage 元素');
+        alert('系統錯誤：找不到錯誤訊息元素，請重新載入頁面');
+        return;
+    }
+    
+    const appsScriptUrl = appsScriptUrlElement.value.trim();
+    console.log('📝 Apps Script URL:', appsScriptUrl || '(使用預設)');
     
     // 隱藏錯誤訊息
-    document.getElementById('errorMessage').classList.add('d-none');
+    errorMessageElement.classList.add('d-none');
     
     // 顯示發送狀態
     showSendingStatus();
     
     try {
-        const processId = window.processId || '{{ process_id }}';
+        const processId = window.processId;
+        console.log('🔍 Process ID:', processId);
+        
+        if (!processId) {
+            throw new Error('找不到處理程序 ID');
+        }
+        
+        const requestData = {
+            apps_script_url: appsScriptUrl || ''
+        };
+        console.log('📦 請求資料:', requestData);
+        
         const response = await fetch(`/send_to_spreadsheet/${processId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                apps_script_url: appsScriptUrl || ''
-            })
+            body: JSON.stringify(requestData)
         });
         
+        console.log('📡 回應狀態:', response.status, response.statusText);
+        
         const result = await response.json();
+        console.log('📊 回應資料:', result);
         
         if (response.ok && result.success) {
+            console.log('✅ 發送成功');
             showSendResult(true, result.message, result);
         } else {
+            console.log('❌ 發送失敗:', result.error);
             showSendResult(false, result.error || '發送失敗', result);
+            
+            // 額外顯示通知
+            showNotification('Google Sheets 創建失敗：' + (result.error || '未知錯誤'), 'error', 8000);
         }
         
     } catch (error) {
-        console.error('發送錯誤:', error);
-        showSendResult(false, '網路錯誤：' + error.message);
+        console.error('💥 發送錯誤:', error);
+        const errorMessage = '網路錯誤：' + error.message;
+        showSendResult(false, errorMessage);
+        
+        // 額外顯示通知
+        showNotification('無法連接到伺服器，請檢查網路連線', 'error', 8000);
     }
 }
 
 function showSendingStatus() {
+    console.log('🔄 顯示發送狀態...');
+    
     // 隱藏主要內容區域
-    document.getElementById('mainContent').classList.add('d-none');
+    const mainContent = document.getElementById('mainContent');
+    if (mainContent) {
+        mainContent.classList.add('d-none');
+    } else {
+        console.error('❌ 找不到 mainContent 元素');
+    }
     
     // 顯示發送狀態
-    document.getElementById('sendingStatus').classList.remove('d-none');
+    const sendingStatus = document.getElementById('sendingStatus');
+    if (sendingStatus) {
+        sendingStatus.classList.remove('d-none');
+    } else {
+        console.error('❌ 找不到 sendingStatus 元素');
+        showNotification('正在創建 Google Sheets...', 'info', 3000);
+    }
     
     // 禁用發送按鈕
     const sendBtn = document.getElementById('sendToSpreadsheetBtn');
-    sendBtn.disabled = true;
-    sendBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 創建中...';
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 創建中...';
+    } else {
+        console.error('❌ 找不到 sendToSpreadsheetBtn 元素');
+    }
 }
 
 function showSendResult(success, message, data = null) {
@@ -343,37 +446,40 @@ function showSendResult(success, message, data = null) {
         resultDiv.classList.remove('d-none');
         
         let successHtml = `
-            <div class="alert alert-success">
-                <i class="bi bi-check-circle"></i>
-                <strong>創建成功！</strong><br>
-                ${message}
-                ${data && data.jobs_sent ? `<br><small class="text-muted">已添加 ${data.jobs_sent} 筆職缺資料</small>` : ''}
-        `;
-        
-        // 如果有 Google Sheet URL，顯示連結
-        if (data && data.spreadsheet_url) {
-            successHtml += `
-                <div class="success-actions mt-3">
-                    <div class="actions-title">
-                        <i class="bi bi-file-earmark-spreadsheet"></i>
-                        Google Spreadsheet 已創建
+            <div class="spreadsheet-success-card">
+                <div class="success-header">
+                    <div class="success-icon">
+                        <i class="bi bi-check-circle-fill"></i>
                     </div>
-                    <div class="d-grid gap-2">
-                        <a href="${data.spreadsheet_url}" target="_blank" class="btn btn-success">
-                            <i class="bi bi-box-arrow-up-right"></i> 開啟 Google Spreadsheet
-                        </a>
-                        <button class="btn btn-outline-secondary" onclick="copyToClipboard('${data.spreadsheet_url}')">
-                            <i class="bi bi-clipboard"></i> 複製連結
-                        </button>
-                    </div>
-                    <div class="spreadsheet-link mt-2" onclick="selectAllText(this)" title="點擊選取全部連結">
-                        ${data.spreadsheet_url}
+                    <div class="success-info">
+                                    <h4 class="success-title">Google Sheets 已成功創建</h4>
+            <p class="success-subtitle">您的職缺資料已完整匯出到 Google Sheets</p>
                     </div>
                 </div>
+                
+                <div class="spreadsheet-details">
+                    <div class="detail-item">
+                        <i class="bi bi-table"></i>
+                        <span>已匯出 ${data && data.jobs_sent ? data.jobs_sent : '0'} 筆職缺資料</span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="bi bi-clock"></i>
+                        <span>創建時間：${new Date().toLocaleString('zh-TW')}</span>
+                    </div>
+                </div>
+                
+                <div class="action-buttons-grid">
+                    <a href="${data && data.spreadsheet_url ? data.spreadsheet_url : '#'}" target="_blank" class="primary-action-btn">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                        <span>開啟 Google Sheets</span>
+                    </a>
+                    <button class="secondary-action-btn" onclick="copyToClipboard('${data && data.spreadsheet_url ? data.spreadsheet_url : ''}')">
+                        <i class="bi bi-clipboard"></i>
+                        <span>複製連結</span>
+                    </button>
+                </div>
+            </div>
         `;
-        }
-        
-        successHtml += `</div>`;
         resultDiv.innerHTML = successHtml;
         
         // 更新按鈕為關閉
@@ -386,24 +492,37 @@ function showSendResult(success, message, data = null) {
         };
         
     } else {
-        // 顯示錯誤訊息在頁腳
+        // 顯示錯誤訊息
         const errorDiv = document.getElementById('errorMessage');
-        errorDiv.innerHTML = `
-            <div class="alert">
-                <i class="bi bi-exclamation-triangle"></i>
-                <strong>創建失敗！</strong> ${message}
-                <br><small class="mt-1 d-block">請檢查網路連線或稍後再試。如果問題持續，請聯繫系統管理員。</small>
-            </div>
-        `;
-        errorDiv.classList.remove('d-none');
+        
+        if (!errorDiv) {
+            console.error('❌ 找不到 errorMessage 元素');
+            // 如果找不到錯誤顯示元素，使用通知系統
+            showNotification('創建失敗：' + message, 'error', 10000);
+            alert('創建失敗：' + message);
+        } else {
+            errorDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>創建失敗！</strong> ${message}
+                    <br><small class="mt-1 d-block">請檢查網路連線或稍後再試。如果問題持續，請聯繫系統管理員。</small>
+                </div>
+            `;
+            errorDiv.classList.remove('d-none');
+        }
         
         // 重新啟用發送按鈕
         const sendBtn = document.getElementById('sendToSpreadsheetBtn');
-        sendBtn.disabled = false;
-        sendBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> 重新嘗試';
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> 重新嘗試';
+        }
         
         // 顯示主要內容讓用戶可以使用高級選項
-        document.getElementById('mainContent').classList.remove('d-none');
+        const mainContent = document.getElementById('mainContent');
+        if (mainContent) {
+            mainContent.classList.remove('d-none');
+        }
     }
 }
 
@@ -557,18 +676,7 @@ function isValidUrl(string) {
     }
 }
 
-// 現代化 Results 頁面 JavaScript
-document.addEventListener('DOMContentLoaded', function() {
-    // 初始化所有功能
-    initModernFeatures();
-    initImageViewing();
-    initDownloadModal();
-    initSpreadsheetModal();
-    initTableInteractions();
-    initPageAnimations();
-    initKeyboardShortcuts();
-    initNotificationSystem();
-});
+// 重複的初始化已移除，統一在主初始化函數中處理
 
 // 現代化功能初始化
 function initModernFeatures() {
@@ -906,142 +1014,20 @@ function hideDownloadProgress() {
     }
 }
 
-// Google Spreadsheet 模態框功能
+// Google Sheets 模態框功能 - 簡化版本，使用主要的sendToSpreadsheet函數
 function initSpreadsheetModal() {
-    const sendBtn = document.getElementById('sendToSpreadsheet');
     const modal = document.getElementById('spreadsheetModal');
-    
-    if (sendBtn) {
-        sendBtn.addEventListener('click', function() {
-            const customUrl = document.getElementById('customAppsScriptUrl').value.trim();
-            sendToGoogleSheets(customUrl);
-        });
-    }
     
     // 重置模態框狀態
     if (modal) {
         modal.addEventListener('show.bs.modal', function() {
+            console.log('📋 初始化 Spreadsheet 模態框...');
             resetSpreadsheetModal();
         });
     }
 }
 
-// 發送到 Google Sheets
-function sendToGoogleSheets(customUrl = '') {
-    const statusDiv = document.getElementById('sendingStatus');
-    const resultDiv = document.getElementById('sendResult');
-    const errorDiv = document.getElementById('errorMessage');
-    
-    // 顯示載入狀態
-    showSendingStatus();
-    
-    // 準備發送資料
-    const payload = {
-        apps_script_url: customUrl
-    };
-    
-    fetch(`/send_to_spreadsheet/${getProcessId()}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideSendingStatus();
-        
-        if (data.success) {
-            showSuccessResult(data);
-        } else {
-            showErrorResult(data.error || '發送失敗');
-        }
-    })
-    .catch(error => {
-        hideSendingStatus();
-        showErrorResult('網路錯誤：' + error.message);
-    });
-}
-
-// 顯示發送狀態
-function showSendingStatus() {
-    const statusDiv = document.getElementById('sendingStatus');
-    if (statusDiv) {
-        statusDiv.style.display = 'block';
-        statusDiv.innerHTML = `
-            <div class="text-center">
-                <div class="spinner-border text-primary mb-3" role="status">
-                    <span class="visually-hidden">發送中...</span>
-                </div>
-                <div class="status-text">正在發送資料到 Google Spreadsheet...</div>
-                <div class="status-subtext text-muted">請稍候，這可能需要幾秒鐘</div>
-            </div>
-        `;
-    }
-}
-
-// 隱藏發送狀態
-function hideSendingStatus() {
-    const statusDiv = document.getElementById('sendingStatus');
-    if (statusDiv) {
-        statusDiv.style.display = 'none';
-    }
-}
-
-// 顯示成功結果
-function showSuccessResult(data) {
-    const resultDiv = document.getElementById('sendResult');
-    if (resultDiv) {
-        resultDiv.style.display = 'block';
-        resultDiv.innerHTML = `
-            <div class="alert alert-success">
-                <i class="bi bi-check-circle-fill me-2"></i>
-                <strong>發送成功！</strong> 已將 ${data.jobs_sent} 筆工作資料發送到 Google Spreadsheet
-            </div>
-            
-            ${data.spreadsheet_url ? `
-                <div class="success-actions">
-                    <div class="actions-title">
-                        <i class="bi bi-link-45deg"></i>
-                        電子表格連結
-                    </div>
-                    <div class="spreadsheet-link" onclick="copyToClipboard('${data.spreadsheet_url}')">
-                        ${data.spreadsheet_url}
-                    </div>
-                    <small class="text-muted d-block mt-2">
-                        <i class="bi bi-info-circle me-1"></i>
-                        點擊連結即可複製到剪貼簿
-                    </small>
-                </div>
-            ` : ''}
-        `;
-    }
-}
-
-// 顯示錯誤結果
-function showErrorResult(errorMessage) {
-    const errorDiv = document.getElementById('errorMessage');
-    if (errorDiv) {
-        errorDiv.style.display = 'block';
-        errorDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                <strong>發送失敗：</strong> ${errorMessage}
-            </div>
-        `;
-    }
-}
-
-// 重置模態框狀態
-function resetSpreadsheetModal() {
-    const statusDiv = document.getElementById('sendingStatus');
-    const resultDiv = document.getElementById('sendResult');
-    const errorDiv = document.getElementById('errorMessage');
-    
-    if (statusDiv) statusDiv.style.display = 'none';
-    if (resultDiv) resultDiv.style.display = 'none';
-    if (errorDiv) errorDiv.style.display = 'none';
-}
+// 這些函數已經在前面定義過了，移除重複定義以避免衝突
 
 // 複製到剪貼簿功能
 function copyToClipboard(text) {

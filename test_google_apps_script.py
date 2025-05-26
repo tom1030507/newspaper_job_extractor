@@ -121,7 +121,7 @@ def main():
     print("\n" + "=" * 50)
     if success:
         print("🎉 測試完成！Google Apps Script 工作正常")
-        print("您現在可以在主系統中使用 Google Spreadsheet 功能了")
+        print("您現在可以在主系統中使用 Google Sheets 功能了")
     else:
         print("❌ 測試失敗！請檢查以下項目：")
         print("1. Google Apps Script URL 是否正確")

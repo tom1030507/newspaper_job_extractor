@@ -1,11 +1,11 @@
-# Google Spreadsheet 自動創建功能
+# Google Sheets 自動創建功能
 
-本系統現在支援自動創建 Google Spreadsheet 並將職缺資料匯入，無需手動設定 Google Apps Script URL。
+本系統現在支援自動創建 Google Sheets 並將職缺資料匯入，無需手動設定 Google Apps Script URL。
 
 ## 🎯 功能特點
 
 ### ✨ 自動創建 Google Sheet
-- **一鍵創建**：點擊「創建 Google Spreadsheet」按鈕即可自動創建試算表
+- **一鍵創建**：點擊「創建 Google Sheets」按鈕即可自動創建試算表
 - **自動命名**：根據處理時間自動生成有意義的檔案名稱
 - **美觀格式**：自動設定標題行樣式、顏色和邊框
 
@@ -31,9 +31,9 @@
 2. 確認資料正確性
 
 ### 第三步：創建 Google Sheet
-1. 點擊「創建 Google Spreadsheet」按鈕
+1. 點擊「創建 Google Sheets」按鈕
 2. 等待系統自動創建試算表
-3. 點擊「開啟 Google Spreadsheet」查看結果
+3. 點擊「開啟 Google Sheets」查看結果
 
 ## 📋 Google Sheet 內容
 

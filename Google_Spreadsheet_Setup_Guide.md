@@ -1,17 +1,17 @@
-# Google Spreadsheet 整合設定指南
+# Google Sheets 整合設定指南
 
-本指南將協助您設定 Google Apps Script 和 Google Spreadsheet，以便從報紙職缺提取器直接發送資料到您的試算表。
+本指南將協助您設定 Google Apps Script 和 Google Sheets，以便從報紙職缺提取器直接發送資料到您的試算表。
 
 ## 📋 目錄
 
-1. [建立 Google Spreadsheet](#1-建立-google-spreadsheet)
+1. [建立 Google Sheets](#1-建立-google-sheets)
 2. [設定 Google Apps Script](#2-設定-google-apps-script)
 3. [部署網路應用程式](#3-部署網路應用程式)
 4. [測試連接](#4-測試連接)
 5. [使用說明](#5-使用說明)
 6. [常見問題](#6-常見問題)
 
-## 1. 建立 Google Spreadsheet
+## 1. 建立 Google Sheets
 
 ### 步驟 1.1：建立新的試算表
 1. 前往 [Google Sheets](https://sheets.google.com)
@@ -87,7 +87,7 @@
    ```
 
 ### 步驟 4.2：檢查試算表
-1. 回到您的 Google Spreadsheet
+1. 回到您的 Google Sheets
 2. 確認可以正常開啟和編輯
 
 ## 5. 使用說明
@@ -95,18 +95,18 @@
 ### 步驟 5.1：在報紙職缺提取器中使用
 1. 完成圖片處理後，進入結果頁面
 2. 點擊「下載結果」按鈕
-3. 點擊「發送到 Google Spreadsheet」
+3. 點擊「發送到 Google Sheets」
 4. 貼上您的 Apps Script URL
 5. 點擊「發送資料」
 
 ### 步驟 5.2：查看結果
-1. 發送成功後，前往您的 Google Spreadsheet
+1. 發送成功後，前往您的 Google Sheets
 2. 查看「職缺資料」工作表
 3. 所有職缺資料將會自動整理在表格中
 
 ## 6. 資料結構說明
 
-發送到 Google Spreadsheet 的資料包含以下欄位：
+發送到 Google Sheets 的資料包含以下欄位：
 
 | 欄位名稱 | 說明 | 範例 |
 |---------|------|------|

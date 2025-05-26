@@ -1,6 +1,6 @@
 # Google Apps Script 設置說明
 
-本系統使用 Google Apps Script 來自動創建 Google Spreadsheet 並接收職缺資料。
+本系統使用 Google Apps Script 來自動創建 Google Sheets 並接收職缺資料。
 
 ## 快速設置
 

@@ -541,10 +541,24 @@ def set_api_key():
     api_key = request.form.get('api_key', '')
     if api_key:
         session['gemini_api_key'] = api_key
-        flash('Gemini API密鑰已設置成功！', 'success')
+        
+        # 檢查請求是否為 AJAX
+        if request.headers.get('Content-Type', '').startswith('multipart/form-data'):
+            # AJAX 請求，返回 JSON 響應
+            return jsonify({'success': True, 'message': 'Gemini API密鑰已設置成功！'})
+        else:
+            # 傳統表單提交，使用 flash 和重定向
+            flash('Gemini API密鑰已設置成功！', 'success')
+            return redirect(url_for('index'))
     else:
-        flash('API密鑰不能為空！', 'danger')
-    return redirect(url_for('index'))
+        # 檢查請求是否為 AJAX
+        if request.headers.get('Content-Type', '').startswith('multipart/form-data'):
+            # AJAX 請求，返回 JSON 響應
+            return jsonify({'success': False, 'message': 'API密鑰不能為空！'}), 400
+        else:
+            # 傳統表單提交，使用 flash 和重定向
+            flash('API密鑰不能為空！', 'danger')
+            return redirect(url_for('index'))
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -1363,7 +1377,7 @@ def cleanup_old_files(max_age_hours=24):
 
 @app.route('/send_to_spreadsheet/<process_id>', methods=['POST'])
 def send_to_spreadsheet(process_id):
-    """將處理結果發送到 Google Spreadsheet"""
+    """將處理結果發送到 Google Sheets"""
     try:
         # 從請求中獲取 Google Apps Script URL（現在變為可選）
         data = request.get_json() if request.get_json() else {}
@@ -1559,7 +1573,7 @@ def send_to_spreadsheet(process_id):
             result = response.json() if response.content else {}
             return jsonify({
                 'success': True,
-                'message': f'成功發送 {len(all_jobs)} 筆職缺資料到 Google Spreadsheet',
+                'message': f'成功發送 {len(all_jobs)} 筆職缺資料到 Google Sheets',
                 'jobs_sent': len(all_jobs),
                 'spreadsheet_url': result.get('spreadsheet_url', ''),
                 'spreadsheet_id': result.get('spreadsheet_id', ''),

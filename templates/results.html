@@ -85,7 +85,7 @@
                 <div class="d-flex justify-content-center gap-3 flex-wrap">
                     <button type="button" class="btn btn-success btn-lg action-btn" data-bs-toggle="modal" data-bs-target="#spreadsheetModal">
                         <i class="bi bi-file-earmark-spreadsheet me-2"></i>
-                        創建 Google Spreadsheet
+                        創建 Google Sheets
                     </button>
                     <button type="button" class="btn btn-primary btn-lg action-btn" data-bs-toggle="modal" data-bs-target="#downloadModal">
                         <i class="bi bi-download me-2"></i>
@@ -214,32 +214,32 @@
                                                 <table class="table table-sm table-bordered">
                                                     <tbody>
                                                         <tr>
-                                                            <td class="fw-bold bg-light" style="width: 25%;">工作</td>
+                                                            <td class="fw-bold bg-light text-center" style="width: 25%;">工作</td>
                                                             <td>{{ job.工作 if job.工作 else '無資訊' }}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="fw-bold bg-light">行業</td>
+                                                            <td class="fw-bold bg-light text-center">行業</td>
                                                             <td>{{ job.行業 if job.行業 else '無資訊' }}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="fw-bold bg-light">時間</td>
+                                                            <td class="fw-bold bg-light text-center">時間</td>
                                                             <td>{{ job.時間 if job.時間 else '無資訊' }}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="fw-bold bg-light">薪資</td>
+                                                            <td class="fw-bold bg-light text-center">薪資</td>
                                                             <td>{{ job.薪資 if job.薪資 else '無資訊' }}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="fw-bold bg-light">地點</td>
+                                                            <td class="fw-bold bg-light text-center">地點</td>
                                                             <td>{{ job.地點 if job.地點 else '無資訊' }}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="fw-bold bg-light">聯絡方式</td>
+                                                            <td class="fw-bold bg-light text-center">聯絡方式</td>
                                                             <td>{{ job.聯絡方式 if job.聯絡方式 else '無資訊' }}</td>
                                                         </tr>
                                                         {% if job.其他 %}
                                                         <tr>
-                                                            <td class="fw-bold bg-light">其他</td>
+                                                            <td class="fw-bold bg-light text-center">其他</td>
                                                             <td>{{ job.其他 }}</td>
                                                         </tr>
                                                         {% endif %}
@@ -636,13 +636,13 @@
         </div>
     </div>
 
-    <!-- Google Spreadsheet 發送模態框 -->
+    <!-- Google Sheets 發送模態框 -->
     <div class="modal fade" id="spreadsheetModal" tabindex="-1" aria-labelledby="spreadsheetModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="spreadsheetModalLabel">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> 創建 Google Spreadsheet
+                        <i class="bi bi-file-earmark-spreadsheet"></i> 創建 Google Sheets
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -655,10 +655,10 @@
                         <div class="feature-card">
                             <div class="card-title">
                                 <i class="bi bi-magic"></i>
-                                自動創建 Google Spreadsheet
+                                自動創建 Google Sheets
                             </div>
                             <ul class="feature-list">
-                                <li>一鍵自動創建全新的 Google Spreadsheet</li>
+                                <li>一鍵自動創建全新的 Google Sheets</li>
                                 <li>自動整理和格式化所有職缺資料</li>
                                 <li>包含詳細的工作資訊和統計分析</li>
                                 <li>生成專業的數據視覺化圖表</li>
@@ -711,7 +711,7 @@
                         <div class="spinner-border text-success" role="status">
                             <span class="visually-hidden">創建中...</span>
                         </div>
-                        <div class="status-text">正在創建您的 Google Spreadsheet</div>
+                        <div class="status-text">正在創建您的 Google Sheets</div>
                         <div class="status-subtext">請稍候，系統正在處理您的資料...</div>
                     </div>
                     
@@ -736,7 +736,7 @@
             <i class="bi bi-check-circle-fill success-icon"></i>
             <div>
                 <div class="success-text">連結已複製！</div>
-                <div class="success-subtext">Google Spreadsheet 連結已複製到剪貼簿</div>
+                <div class="success-subtext">Google Sheets 連結已複製到剪貼簿</div>
             </div>
         </div>
     </div>

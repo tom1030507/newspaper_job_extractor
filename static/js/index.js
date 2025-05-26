@@ -159,25 +159,46 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 顯示通知
     function showNotification(message, type = 'info') {
+        // 創建或獲取通知容器
+        let notificationContainer = document.getElementById('notification-container');
+        if (!notificationContainer) {
+            notificationContainer = document.createElement('div');
+            notificationContainer.id = 'notification-container';
+            notificationContainer.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                width: 350px;
+                pointer-events: none;
+            `;
+            document.body.appendChild(notificationContainer);
+        }
+        
         const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show animate__animated animate__fadeInDown" role="alert">
+            <div class="alert alert-${type} alert-dismissible fade show animate__animated animate__fadeInRight notification-alert" role="alert" style="pointer-events: auto; margin-bottom: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                 <i class="bi bi-${type === 'success' ? 'check-circle-fill' : type === 'danger' ? 'exclamation-triangle-fill' : 'info-circle-fill'} me-2"></i>
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;
         
-        // 插入到頁面頂部
-        const container = document.querySelector('.container');
-        const firstChild = container.firstElementChild;
-        firstChild.insertAdjacentHTML('afterend', alertHtml);
+        // 插入到通知容器頂部
+        notificationContainer.insertAdjacentHTML('afterbegin', alertHtml);
+        
+        // 獲取剛插入的通知元素
+        const newAlert = notificationContainer.querySelector('.alert');
         
         // 3秒後自動消失
         setTimeout(() => {
-            const alert = container.querySelector('.alert');
-            if (alert) {
-                alert.classList.add('animate__fadeOutUp');
-                setTimeout(() => alert.remove(), 500);
+            if (newAlert && newAlert.parentNode) {
+                                 newAlert.classList.remove('animate__fadeInRight');
+                 newAlert.classList.add('animate__fadeOutRight');
+                setTimeout(() => {
+                    if (newAlert.parentNode) {
+                        newAlert.remove();
+                    }
+                }, 500);
             }
         }, 3000);
     }
@@ -339,14 +360,63 @@ document.addEventListener('DOMContentLoaded', function() {
     const apiForm = document.querySelector('.api-form');
     if (apiForm) {
         apiForm.addEventListener('submit', function(e) {
+            e.preventDefault(); // 阻止默認表單提交
+            
             const apiKeyInput = this.querySelector('input[name="api_key"]');
             const submitBtn = this.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
             
             if (apiKeyInput.value.trim()) {
                 submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>保存中...';
                 submitBtn.disabled = true;
                 
-                // 表單提交後會重新加載頁面，所以不需要恢復按鈕狀態
+                // 使用 fetch API 提交表單
+                const formData = new FormData(this);
+                
+                fetch('/set_api_key', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json().then(data => ({ status: response.status, data })))
+                .then(({ status, data }) => {
+                    if (status === 200 && data.success) {
+                        // 成功保存
+                        submitBtn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>已保存';
+                        submitBtn.classList.remove('btn-primary');
+                        submitBtn.classList.add('btn-success');
+                        
+                        // 更新頁面上的 API 狀態顯示
+                        const apiStatus = document.querySelector('.api-status');
+                        if (apiStatus) {
+                            const modelBadge = apiStatus.innerHTML.match(/<span class="badge bg-primary.*?<\/span>/)?.[0] || '';
+                            apiStatus.innerHTML = '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>API 密鑰已設置</span>' + 
+                                                 (modelBadge ? ' ' + modelBadge : '');
+                        }
+                        
+                        // 顯示成功通知
+                        showNotification(data.message, 'success');
+                        
+                        // 2秒後恢復按鈕狀態
+                        setTimeout(() => {
+                            submitBtn.innerHTML = originalBtnText;
+                            submitBtn.classList.remove('btn-success');
+                            submitBtn.classList.add('btn-primary');
+                            submitBtn.disabled = false;
+                        }, 2000);
+                    } else {
+                        throw new Error(data.message || '保存失敗');
+                    }
+                })
+                .catch(error => {
+                    console.error('API key save error:', error);
+                    showNotification('保存 API 密鑰時發生錯誤，請重試', 'danger');
+                    
+                    // 恢復按鈕狀態
+                    submitBtn.innerHTML = originalBtnText;
+                    submitBtn.disabled = false;
+                });
+            } else {
+                showNotification('API密鑰不能為空！', 'warning');
             }
         });
     }

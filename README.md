@@ -152,31 +152,31 @@ After startup, open your browser and navigate to http://127.0.0.1:5000 to use th
 3. **AI Analysis** - Uses Google Gemini AI to automatically analyze extracted job blocks, identifying job titles, salaries, locations, and other information
 4. **View Results** - View extracted blocks in a grid layout with AI analysis results
 5. **Download Results** - Download all extracted blocks as a ZIP file, including CSV, SQL, and other formats
-6. **🆕 Google Spreadsheet Integration** - Directly send job data to your Google Spreadsheet
+6. **🆕 Google Sheets Integration** - Directly send job data to your Google Sheets
 
-### 🆕 Google Spreadsheet Integration Feature
+### 🆕 Google Sheets Integration Feature
 
-This tool now supports sending extracted job data directly to Google Spreadsheet, allowing you to manage and analyze job data more conveniently.
+This tool now supports sending extracted job data directly to Google Sheets, allowing you to manage and analyze job data more conveniently.
 
 #### Key Features:
-- **One-Click Send**: After processing, directly send all job data to your Google Spreadsheet
+- **One-Click Send**: After processing, directly send all job data to your Google Sheets
 - **Auto Organization**: Data is automatically organized in table format, including job title, salary, location, contact information, and other fields
 - **Real-time Sync**: Supports multiple sends, new data will be automatically added to the spreadsheet
 - **Complete Records**: Includes processing time, source images, processing ID, and other complete information
 
 #### Setup Steps:
 1. Refer to `Google_Spreadsheet_Setup_Guide.md` to set up your Google Apps Script
-2. Click "Send to Google Spreadsheet" on the results page
+2. Click "Send to Google Sheets" on the results page
 3. Enter your Google Apps Script URL
 4. Click send, and data will be automatically transmitted to your spreadsheet
 
 #### Data Format:
-Data sent to Google Spreadsheet includes the following fields:
+Data sent to Google Sheets includes the following fields:
 - Add Time, Job, Industry, Time, Salary, Location
 - Contact Information, Other Information, Source Image, Page Number
 - Job ID, Image ID, Process ID, Source System
 
-For detailed setup instructions, please refer to: [Google Spreadsheet Setup Guide](Google_Spreadsheet_Setup_Guide.md)
+For detailed setup instructions, please refer to: [Google Sheets Setup Guide](Google_Spreadsheet_Setup_Guide.md)
 
 ### Notes
 
