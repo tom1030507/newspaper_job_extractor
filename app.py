@@ -1040,12 +1040,22 @@ def cleanup_old_files(max_age_hours=24):
 def send_to_spreadsheet(process_id):
     """將處理結果發送到 Google Spreadsheet"""
     try:
-        # 從請求中獲取 Google Apps Script URL
-        data = request.get_json()
-        apps_script_url = data.get('apps_script_url') if data else None
+        # 從請求中獲取 Google Apps Script URL（現在變為可選）
+        data = request.get_json() if request.get_json() else {}
+        apps_script_url = data.get('apps_script_url', '')
         
+        # 如果沒有提供 URL，使用默認的自動創建 Google Sheet 的 Apps Script
         if not apps_script_url:
-            return jsonify({'error': '請提供 Google Apps Script URL'}), 400
+            # TODO: 請將下面的 URL 替換為您實際部署的 Google Apps Script URL
+            # 您可以在 Google Apps Script 部署後獲得真實的 URL
+            apps_script_url = 'YOUR_ACTUAL_GOOGLE_APPS_SCRIPT_URL_HERE'  # 請替換為實際部署的 URL
+            
+            # 如果還沒有設置真實的 URL，返回錯誤
+            if apps_script_url == 'YOUR_ACTUAL_GOOGLE_APPS_SCRIPT_URL_HERE':
+                return jsonify({
+                    'error': '請先設置 Google Apps Script URL',
+                    'message': '請參考 GOOGLE_APPS_SCRIPT_SETUP.md 文件來部署您的 Google Apps Script，然後更新 app.py 中的 URL'
+                }), 400
         
         # 收集職缺資料 - 使用與 results 和 download 相同的邏輯
         all_jobs = []
@@ -1126,12 +1136,24 @@ def send_to_spreadsheet(process_id):
             }
         }
         
+        # 添加詳細日誌記錄
+        print(f"準備發送資料到 Google Apps Script: {apps_script_url}")
+        print(f"職缺資料數量: {len(all_jobs)}")
+        print(f"第一筆職缺資料範例: {all_jobs[0] if all_jobs else 'None'}")
+        print(f"Payload 大小: {len(str(payload))} 字符")
+        
         # 發送資料到 Google Apps Script
         headers = {
             'Content-Type': 'application/json'
         }
         
-        response = requests.post(apps_script_url, json=payload, headers=headers, timeout=30)
+        try:
+            response = requests.post(apps_script_url, json=payload, headers=headers, timeout=30)
+            print(f"HTTP 回應狀態碼: {response.status_code}")
+            print(f"HTTP 回應內容: {response.text[:500]}...")  # 只顯示前500字符
+        except Exception as e:
+            print(f"發送請求時發生錯誤: {str(e)}")
+            raise
         
         if response.status_code == 200:
             result = response.json() if response.content else {}
@@ -1139,6 +1161,8 @@ def send_to_spreadsheet(process_id):
                 'success': True,
                 'message': f'成功發送 {len(all_jobs)} 筆職缺資料到 Google Spreadsheet',
                 'jobs_sent': len(all_jobs),
+                'spreadsheet_url': result.get('spreadsheet_url', ''),
+                'spreadsheet_id': result.get('spreadsheet_id', ''),
                 'response': result
             }), 200
         else:
