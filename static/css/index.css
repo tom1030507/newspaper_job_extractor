@@ -1,0 +1,136 @@
+body {
+    padding: 40px 0;
+    background-color: #f8f9fa;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.upload-form {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 30px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.upload-form h1 {
+    color: #333;
+    margin-bottom: 30px;
+    font-weight: 600;
+}
+
+.features {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.features h4 {
+    color: #495057;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.features ul {
+    list-style-type: none;
+    padding-left: 0;
+    margin-bottom: 0;
+}
+
+.features li {
+    padding: 8px 0;
+    position: relative;
+    padding-left: 25px;
+    color: #495057;
+    line-height: 1.5;
+}
+
+.features li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    color: #28a745;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.footer {
+    margin-top: 30px;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+#loading-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: none;
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+#loading-container.show {
+    display: flex;
+}
+
+.loading-content {
+    text-align: center;
+    color: white;
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+    margin: 20px;
+}
+
+.loading-content h4 {
+    margin-top: 20px;
+    margin-bottom: 15px;
+    color: #333;
+    font-weight: 600;
+}
+
+.loading-content p {
+    margin-bottom: 0;
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+.spinner {
+    width: 4rem !important;
+    height: 4rem !important;
+    border-width: 4px !important;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+    body {
+        padding: 20px 0;
+    }
+    
+    .upload-form {
+        margin: 0 15px;
+        padding: 20px;
+    }
+    
+    .upload-form h1 {
+        font-size: 1.5rem;
+    }
+    
+    .loading-content {
+        padding: 30px 20px;
+        margin: 10px;
+    }
+    
+    .loading-content h4 {
+        font-size: 1.2rem;
+    }
+} 
