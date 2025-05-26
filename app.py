@@ -700,22 +700,46 @@ def results(process_id):
             grouped_requests[process_key].append((filename, page_num, image_data))
         
         # 對每個 process_id 進行批量處理
-        all_descriptions = {}
         for process_key, files_info in grouped_requests.items():
-            filenames = [info[0] for info in files_info]
-            descriptions = get_descriptions_for_multiple_images(process_key, filenames)
+            filenames_to_process = []
+            # 檢查是否已經有儲存的描述
+            for fname, p_num, img_data in files_info:
+                if process_key in image_storage and fname in image_storage[process_key] and 'description' in image_storage[process_key][fname]:
+                    # 如果已有描述，直接使用
+                    description = image_storage[process_key][fname]['description']
+                else:
+                    filenames_to_process.append(fname)
             
-            # 將結果與頁碼和圖片資料關聯
+            # 只對沒有描述的圖片調用API
+            if filenames_to_process:
+                new_descriptions = get_descriptions_for_multiple_images(process_key, filenames_to_process)
+            else:
+                new_descriptions = {}
+
+            # 將結果與頁碼和圖片資料關聯，並儲存描述
             for filename, page_num, image_data in files_info:
-                description = descriptions.get(filename, [{
-                    "工作": "處理失敗",
-                    "行業": "",
-                    "時間": "",
-                    "薪資": "",
-                    "地點": "",
-                    "聯絡方式": "",
-                    "其他": ""
-                }])
+                if filename in new_descriptions:
+                    description = new_descriptions[filename]
+                    # 儲存新獲取的描述到 image_storage
+                    if process_key in image_storage and filename in image_storage[process_key]:
+                        image_storage[process_key][filename]['description'] = description
+                    elif process_key not in image_storage: # 理論上 process_key 應該已經存在
+                        image_storage[process_key] = {filename: {'description': description}}
+                    else: # process_key 存在但 filename 不存在
+                        image_storage[process_key][filename] = {'description': description}
+
+                elif process_key in image_storage and filename in image_storage[process_key] and 'description' in image_storage[process_key][fname]:
+                    description = image_storage[process_key][filename]['description']
+                else:
+                    description = [{
+                        "工作": "處理失敗",
+                        "行業": "",
+                        "時間": "",
+                        "薪資": "",
+                        "地點": "",
+                        "聯絡方式": "",
+                        "其他": ""
+                    }]
                 
                 # 檢查是否有有效的工作資訊
                 has_valid_jobs = any(is_valid_job(job) for job in description)
@@ -867,62 +891,53 @@ def download_results(process_id):
     
     # 批量處理描述（使用與 results 函數相同的邏輯）
     if batch_download_requests:
-        print(f"開始批量處理下載的 {len(batch_download_requests)} 張圖片...")
+        print(f"準備從快取中讀取 {len(batch_download_requests)} 張圖片的描述...")
         
-        # 按 process_id 分組，然後批量處理
-        grouped_download_requests = {}
         for process_key, filename, page_num, image_data in batch_download_requests:
-            if process_key not in grouped_download_requests:
-                grouped_download_requests[process_key] = []
-            grouped_download_requests[process_key].append((filename, page_num, image_data))
-        
-        # 對每個 process_id 進行批量處理
-        for process_key, files_info in grouped_download_requests.items():
-            filenames = [info[0] for info in files_info]
-            descriptions = get_descriptions_for_multiple_images(process_key, filenames)
+            description = [] # Default to empty list
+            if process_key in image_storage and \
+               filename in image_storage[process_key] and \
+               'description' in image_storage[process_key][filename]:
+                description = image_storage[process_key][filename]['description']
+            else:
+                # 理論上不應該發生，因為 results 頁面應該已經填充了描述
+                print(f"警告: 在 image_storage 中找不到圖片 {filename} (process_key: {process_key}) 的描述，將使用空描述。")
+                description = [{
+                    "工作": "描述未找到",
+                    "行業": "", "時間": "", "薪資": "",
+                    "地點": "", "聯絡方式": "", "其他": ""
+                }]
             
-            # 將結果與頁碼和圖片資料關聯
-            for filename, page_num, image_data in files_info:
-                description = descriptions.get(filename, [{
-                    "工作": "處理失敗",
-                    "行業": "",
-                    "時間": "",
-                    "薪資": "",
-                    "地點": "",
-                    "聯絡方式": "",
-                    "其他": ""
-                }])
+            # 檢查是否有有效的工作資訊 - 只有有效工作的圖片才會被包含
+            has_valid_jobs = any(is_valid_job(job) for job in description)
+            
+            if has_valid_jobs:
+                # 只包含在頁面上顯示的圖片
+                all_images.append({
+                    'filename': filename,
+                    'page': page_num,
+                    'data': image_data, # image_data 包含 binary 和 base64
+                    'description': description
+                })
                 
-                # 檢查是否有有效的工作資訊 - 只有有效工作的圖片才會被包含
-                has_valid_jobs = any(is_valid_job(job) for job in description)
-                
-                if has_valid_jobs:
-                    # 只包含在頁面上顯示的圖片
-                    all_images.append({
-                        'filename': filename,
-                        'page': page_num,
-                        'data': image_data,
-                        'description': description
-                    })
-                    
-                    # 收集工作資訊 - 只包含有效的工作
-                    if isinstance(description, list):
-                        for i, job in enumerate(description):
-                            if is_valid_job(job):
-                                job_info = job.copy()
-                                job_info['來源圖片'] = filename
-                                job_info['頁碼'] = page_num
-                                if page_num != '1':
-                                    job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
-                                else:
-                                    job_info['圖片編號'] = filename.split('.')[0]
-                                if len([j for j in description if is_valid_job(j)]) > 1:
-                                    valid_jobs = [j for j in description if is_valid_job(j)]
-                                    job_index = valid_jobs.index(job) + 1
-                                    job_info['工作編號'] = f"工作 {job_index}"
-                                else:
-                                    job_info['工作編號'] = ""
-                                all_jobs.append(job_info)
+                # 收集工作資訊 - 只包含有效的工作
+                if isinstance(description, list):
+                    for i, job in enumerate(description):
+                        if is_valid_job(job):
+                            job_info = job.copy()
+                            job_info['來源圖片'] = filename
+                            job_info['頁碼'] = page_num
+                            if page_num != '1': # 處理 PDF 和單張圖片的情況
+                                job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
+                            else:
+                                job_info['圖片編號'] = filename.split('.')[0]
+                            if len([j for j in description if is_valid_job(j)]) > 1:
+                                valid_jobs = [j for j in description if is_valid_job(j)]
+                                job_index = valid_jobs.index(job) + 1
+                                job_info['工作編號'] = f"工作 {job_index}"
+                            else:
+                                job_info['工作編號'] = ""
+                            all_jobs.append(job_info)
     
     # 對圖片按工作數量從小到大排序，與頁面顯示順序一致
     def count_valid_jobs_in_image(image):
@@ -1204,8 +1219,19 @@ def send_to_spreadsheet(process_id):
                     if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
                         continue
                     
-                    # 獲取圖片描述
-                    description = get_image_description(page_key, filename)
+                    # MODIFIED: 直接從 image_storage 獲取描述
+                    description = []
+                    if page_key in image_storage and \
+                       filename in image_storage[page_key] and \
+                       'description' in image_storage[page_key][filename]:
+                        description = image_storage[page_key][filename]['description']
+                    else:
+                        print(f"警告: 在 send_to_spreadsheet 中找不到圖片 {filename} (page_key: {page_key}) 的描述，將使用空描述。")
+                        description = [{
+                            "工作": "描述未找到",
+                            "行業": "", "時間": "", "薪資": "",
+                            "地點": "", "聯絡方式": "", "其他": ""
+                        }]
                     
                     # 收集有效的工作資訊
                     if isinstance(description, list):
@@ -1229,8 +1255,19 @@ def send_to_spreadsheet(process_id):
                 if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
                     continue
                 
-                # 獲取圖片描述
-                description = get_image_description(process_id, filename)
+                # MODIFIED: 直接從 image_storage 獲取描述
+                description = []
+                if process_id in image_storage and \
+                   filename in image_storage[process_id] and \
+                   'description' in image_storage[process_id][filename]:
+                    description = image_storage[process_id][filename]['description']
+                else:
+                    print(f"警告: 在 send_to_spreadsheet 中找不到圖片 {filename} (process_id: {process_id}) 的描述，將使用空描述。")
+                    description = [{
+                        "工作": "描述未找到",
+                        "行業": "", "時間": "", "薪資": "",
+                        "地點": "", "聯絡方式": "", "其他": ""
+                    }]
                 
                 # 收集有效的工作資訊
                 if isinstance(description, list):
