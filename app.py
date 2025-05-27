@@ -110,7 +110,7 @@ def evaluate_single_orientation(api_key, orientation_name, rotated_image):
         return orientation_name, 1.0
 
 def check_and_get_rotation_direction(image):
-    """使用Gemini API檢查圖片方向，返回需要旋轉的方向信息（多線程版本）"""
+    """使用Gemini API檢查圖片方向，返回需要旋轉的方向信息（支援並行或序列處理）"""
     
     # 從session中獲取API密鑰
     api_key = session.get('gemini_api_key', '')
@@ -118,6 +118,9 @@ def check_and_get_rotation_direction(image):
     if not api_key:
         print("未設置Gemini API密鑰，跳過方向檢查")
         return "正確"
+    
+    # 檢查是否啟用並行處理
+    parallel_process = session.get('parallel_process', True)  # 默認啟用
     
     try:
         # 生成四個方向的圖片
@@ -128,33 +131,51 @@ def check_and_get_rotation_direction(image):
             "逆時針90度": cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
         }
         
-        print("開始並行分析四個方向的圖片...")
-        start_time = time.time()
-        
-        # 使用 ThreadPoolExecutor 並行處理四個方向
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            # 創建部分函數，固定 api_key 參數
-            evaluate_func = partial(evaluate_single_orientation, api_key)
+        if parallel_process:
+            print("開始並行分析四個方向的圖片...")
+            start_time = time.time()
             
-            # 提交所有任務
-            future_to_orientation = {
-                executor.submit(evaluate_func, orientation_name, rotated_image): orientation_name
-                for orientation_name, rotated_image in orientations.items()
-            }
+            # 使用 ThreadPoolExecutor 並行處理四個方向
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                # 創建部分函數，固定 api_key 參數
+                evaluate_func = partial(evaluate_single_orientation, api_key)
+                
+                # 提交所有任務
+                future_to_orientation = {
+                    executor.submit(evaluate_func, orientation_name, rotated_image): orientation_name
+                    for orientation_name, rotated_image in orientations.items()
+                }
+                
+                scores = {}
+                # 收集結果
+                for future in concurrent.futures.as_completed(future_to_orientation):
+                    try:
+                        orientation_name, score = future.result()
+                        scores[orientation_name] = score
+                    except Exception as e:
+                        orientation_name = future_to_orientation[future]
+                        print(f"處理{orientation_name}時出錯: {str(e)}")
+                        scores[orientation_name] = 1.0
+        
+            end_time = time.time()
+            print(f"並行處理完成，耗時: {end_time - start_time:.2f}秒")
+        else:
+            # 序列處理
+            print("開始序列分析四個方向的圖片...")
+            start_time = time.time()
             
             scores = {}
-            # 收集結果
-            for future in concurrent.futures.as_completed(future_to_orientation):
+            for orientation_name, rotated_image in orientations.items():
+                print(f"分析方向: {orientation_name}")
                 try:
-                    orientation_name, score = future.result()
+                    orientation_name, score = evaluate_single_orientation(api_key, orientation_name, rotated_image)
                     scores[orientation_name] = score
                 except Exception as e:
-                    orientation_name = future_to_orientation[future]
                     print(f"處理{orientation_name}時出錯: {str(e)}")
                     scores[orientation_name] = 1.0
-        
-        end_time = time.time()
-        print(f"並行處理完成，耗時: {end_time - start_time:.2f}秒")
+            
+            end_time = time.time()
+            print(f"序列處理完成，耗時: {end_time - start_time:.2f}秒")
         
         # 找出得分最高的方向
         if scores:
@@ -363,7 +384,7 @@ def get_image_description_for_single_image(api_key, process_id, image_name):
         }]
 
 def get_descriptions_for_multiple_images(process_id, image_names):
-    """為多張圖片並行獲取描述"""
+    """為多張圖片獲取描述（支援並行或序列處理）"""
     
     # 從session中獲取API密鑰
     api_key = session.get('gemini_api_key', '')
@@ -380,28 +401,57 @@ def get_descriptions_for_multiple_images(process_id, image_names):
             "其他": "請在首頁設置API密鑰"
         }] for name in image_names}
     
-    print(f"開始並行處理 {len(image_names)} 張圖片的描述...")
-    start_time = time.time()
+    # 檢查是否啟用並行處理
+    parallel_process = session.get('parallel_process', True)  # 默認啟用
     
-    # 使用 ThreadPoolExecutor 並行處理多張圖片
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, len(image_names))) as executor:
-        # 創建部分函數，固定 api_key 和 process_id 參數
-        get_desc_func = partial(get_image_description_for_single_image, api_key, process_id)
+    if parallel_process:
+        print(f"開始並行處理 {len(image_names)} 張圖片的描述...")
+        start_time = time.time()
         
-        # 提交所有任務
-        future_to_image = {
-            executor.submit(get_desc_func, image_name): image_name
-            for image_name in image_names
-        }
+        # 使用 ThreadPoolExecutor 並行處理多張圖片
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, len(image_names))) as executor:
+            # 創建部分函數，固定 api_key 和 process_id 參數
+            get_desc_func = partial(get_image_description_for_single_image, api_key, process_id)
+            
+            # 提交所有任務
+            future_to_image = {
+                executor.submit(get_desc_func, image_name): image_name
+                for image_name in image_names
+            }
+            
+            results = {}
+            # 收集結果
+            for future in concurrent.futures.as_completed(future_to_image):
+                try:
+                    image_name, description = future.result()
+                    results[image_name] = description
+                except Exception as e:
+                    image_name = future_to_image[future]
+                    print(f"處理 {image_name} 時出錯: {str(e)}")
+                    results[image_name] = [{
+                        "工作": "處理失敗",
+                        "行業": "",
+                        "時間": "",
+                        "薪資": "",
+                        "地點": "",
+                        "聯絡方式": "",
+                        "其他": str(e)
+                    }]
+        
+        end_time = time.time()
+        print(f"並行描述處理完成，耗時: {end_time - start_time:.2f}秒")
+    else:
+        # 序列處理
+        print(f"開始序列處理 {len(image_names)} 張圖片的描述...")
+        start_time = time.time()
         
         results = {}
-        # 收集結果
-        for future in concurrent.futures.as_completed(future_to_image):
+        for i, image_name in enumerate(image_names, 1):
+            print(f"處理圖片 {i}/{len(image_names)}: {image_name}")
             try:
-                image_name, description = future.result()
+                image_name, description = get_image_description_for_single_image(api_key, process_id, image_name)
                 results[image_name] = description
             except Exception as e:
-                image_name = future_to_image[future]
                 print(f"處理 {image_name} 時出錯: {str(e)}")
                 results[image_name] = [{
                     "工作": "處理失敗",
@@ -412,9 +462,9 @@ def get_descriptions_for_multiple_images(process_id, image_names):
                     "聯絡方式": "",
                     "其他": str(e)
                 }]
-    
-    end_time = time.time()
-    print(f"並行描述處理完成，耗時: {end_time - start_time:.2f}秒")
+        
+        end_time = time.time()
+        print(f"序列描述處理完成，耗時: {end_time - start_time:.2f}秒")
     
     return results
 
@@ -424,10 +474,17 @@ def process_image_data(image, process_id, image_name):
     import tempfile
     import shutil
     
-    # 首先檢查圖片需要旋轉的方向，但不立即旋轉
-    print(f"開始檢查圖片方向: {image_name}")
-    rotation_direction = check_and_get_rotation_direction(image)
-    print(f"檢測到需要旋轉方向: {rotation_direction}")
+    # 檢查是否啟用自動校正方向
+    auto_rotate = session.get('auto_rotate', True)  # 默認啟用
+    
+    if auto_rotate:
+        # 首先檢查圖片需要旋轉的方向，但不立即旋轉
+        print(f"開始檢查圖片方向: {image_name}")
+        rotation_direction = check_and_get_rotation_direction(image)
+        print(f"檢測到需要旋轉方向: {rotation_direction}")
+    else:
+        print(f"自動校正方向已停用，跳過方向檢查: {image_name}")
+        rotation_direction = "正確"
     
     # 創建臨時目錄進行處理
     temp_dir = tempfile.mkdtemp()
@@ -575,6 +632,16 @@ def upload_file():
     if not session.get('gemini_api_key'):
         flash('請先設置Gemini API密鑰', 'warning')
         return redirect(url_for('index'))
+    
+    # 獲取處理選項
+    auto_rotate = request.form.get('auto_rotate') == 'true'
+    parallel_process = request.form.get('parallel_process') == 'true'
+    
+    # 將選項儲存到session中，供處理函數使用
+    session['auto_rotate'] = auto_rotate
+    session['parallel_process'] = parallel_process
+    
+    print(f"處理選項 - 自動校正方向: {auto_rotate}, 並行處理: {parallel_process}")
     
     # 檢查檔案數量限制
     MAX_FILES = 10

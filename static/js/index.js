@@ -328,6 +328,12 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('files', file);
         });
         
+        // 添加處理選項
+        const autoRotate = document.getElementById('auto-rotate').checked;
+        const parallelProcess = document.getElementById('parallel-process').checked;
+        formData.append('auto_rotate', autoRotate);
+        formData.append('parallel_process', parallelProcess);
+        
         // 實際提交表單
         fetch('/upload', {
             method: 'POST',
