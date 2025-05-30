@@ -422,7 +422,7 @@ def get_image_description_for_single_image(api_key, process_id, image_name):
             "其他": str(e)
         }]
 
-def get_descriptions_for_multiple_images(process_id, image_names):
+def get_descriptions_for_multiple_images(process_id, image_names, already_processed=0, total_global_images=None):
     """為多張圖片獲取描述（支援並行或序列處理）"""
     
     # 從session中獲取API密鑰
@@ -439,6 +439,11 @@ def get_descriptions_for_multiple_images(process_id, image_names):
             "聯絡方式": "",
             "其他": "請在首頁設置API密鑰"
         }] for name in image_names}
+    
+    # 如果沒有提供全局總數，使用當前圖片數量
+    if total_global_images is None:
+        total_global_images = len(image_names)
+        already_processed = 0
     
     # 更新進度：開始 AI 分析
     update_progress(process_id, "analyze", 60, f"開始 AI 分析 {len(image_names)} 張圖片")
@@ -472,9 +477,10 @@ def get_descriptions_for_multiple_images(process_id, image_names):
                     image_name, description = future.result()
                     results[image_name] = description
                     
-                    # 更新 AI 分析進度 (60-95%)
-                    progress = 60 + int((completed_count / total_images) * 35)
-                    update_progress(process_id, "analyze", progress, f"已分析 {completed_count}/{total_images} 張圖片")
+                    # 更新 AI 分析進度 (60-95%) - 使用全局進度
+                    global_completed = already_processed + completed_count
+                    progress = 60 + int((global_completed / total_global_images) * 35)
+                    update_progress(process_id, "analyze", progress, f"已分析 {global_completed}/{total_global_images} 張圖片")
                     
                 except Exception as e:
                     image_name = future_to_image[future]
@@ -500,9 +506,10 @@ def get_descriptions_for_multiple_images(process_id, image_names):
         for i, image_name in enumerate(image_names, 1):
             print(f"處理圖片 {i}/{len(image_names)}: {image_name}")
             
-            # 更新 AI 分析進度 (60-95%)
-            progress = 60 + int((i - 1) / len(image_names) * 35)
-            update_progress(process_id, "analyze", progress, f"分析圖片 {i}/{len(image_names)}: {image_name}")
+            # 更新 AI 分析進度 (60-95%) - 使用全局進度
+            global_completed = already_processed + i
+            progress = 60 + int((global_completed - 1) / total_global_images * 35)
+            update_progress(process_id, "analyze", progress, f"分析圖片 {global_completed}/{total_global_images}: {image_name}")
             
             try:
                 image_name, description = get_image_description_for_single_image(api_key, process_id, image_name)
@@ -527,14 +534,14 @@ def get_descriptions_for_multiple_images(process_id, image_names):
     
     return results
 
-def process_image_data(image, process_id, image_name):
+def process_image_data(image, process_id, image_name, progress_start=10, progress_range=50):
     """處理圖像並儲存結果"""
     from image_processor import process_image as original_process_image
     import tempfile
     import shutil
     
     # 更新進度：開始圖像處理
-    update_progress(process_id, "process", 10, f"開始處理圖像: {image_name}")
+    update_progress(process_id, "process", progress_start, f"開始處理圖像: {image_name}")
     
     # 檢查是否啟用自動校正方向
     auto_rotate = session.get('auto_rotate', True)  # 默認啟用
@@ -542,14 +549,17 @@ def process_image_data(image, process_id, image_name):
     if auto_rotate:
         # 首先檢查圖片需要旋轉的方向，但不立即旋轉
         print(f"開始檢查圖片方向: {image_name}")
-        update_progress(process_id, "process", 20, f"檢查圖片方向: {image_name}")
+        direction_check_progress = progress_start + int(progress_range * 0.2)  # 20%的範圍用於方向檢查
+        update_progress(process_id, "process", direction_check_progress, f"檢查圖片方向: {image_name}")
         rotation_direction = check_and_get_rotation_direction(image)
         print(f"檢測到需要旋轉方向: {rotation_direction}")
-        update_progress(process_id, "process", 20, f"方向檢測完成: {rotation_direction}")
+        direction_done_progress = progress_start + int(progress_range * 0.6)  # 60%完成方向檢測
+        update_progress(process_id, "process", direction_done_progress, f"方向檢測完成: {rotation_direction}")
     else:
         print(f"自動校正方向已停用，跳過方向檢查: {image_name}")
         rotation_direction = "正確"
-        update_progress(process_id, "process", 20, "跳過方向檢測")
+        direction_done_progress = progress_start + int(progress_range * 0.6)
+        update_progress(process_id, "process", direction_done_progress, "跳過方向檢測")
     
     # 創建臨時目錄進行處理
     temp_dir = tempfile.mkdtemp()
@@ -557,9 +567,11 @@ def process_image_data(image, process_id, image_name):
     try:
         # 使用原始圖片進行處理（不旋轉）
         print("使用原始圖片進行區塊分割處理...")
-        update_progress(process_id, "process", 42, "執行區塊分割處理")
+        segment_start_progress = progress_start + int(progress_range * 0.65)
+        update_progress(process_id, "process", segment_start_progress, "執行區塊分割處理")
         original_process_image(image, temp_dir, image_name)
-        update_progress(process_id, "process", 50, "區塊分割處理完成")
+        segment_done_progress = progress_start + int(progress_range * 0.8)
+        update_progress(process_id, "process", segment_done_progress, "區塊分割處理完成")
         
         # 將處理結果儲存
         if process_id not in image_storage:
@@ -570,7 +582,8 @@ def process_image_data(image, process_id, image_name):
         total_files = len([f for f in os.listdir(temp_dir) if f.endswith(('.jpg', '.jpeg', '.png'))])
         processed_count = 0
         
-        update_progress(process_id, "process", 52, f"處理 {total_files} 個輸出檔案")
+        file_process_start_progress = progress_start + int(progress_range * 0.85)
+        update_progress(process_id, "process", file_process_start_progress, f"處理 {total_files} 個輸出檔案")
         
         for filename in os.listdir(temp_dir):
             if filename.endswith(('.jpg', '.jpeg', '.png')):
@@ -597,18 +610,19 @@ def process_image_data(image, process_id, image_name):
                     processed_count += 1
                     
                     # 更新進度
-                    progress = 52 + int((processed_count / total_files) * 8)  # 52-60%
-                    update_progress(process_id, "process", progress, f"已處理 {processed_count}/{total_files} 個檔案")
+                    file_process_progress = file_process_start_progress + int((processed_count / total_files) * (progress_range * 0.15))
+                    update_progress(process_id, "process", file_process_progress, f"已處理 {processed_count}/{total_files} 個檔案")
                 else:
                     print(f"無法讀取處理後的圖片: {filename}")
         
         print(f"處理完成，共處理了 {len(processed_files)} 張圖片")
+        final_progress = progress_start + progress_range
         if rotation_direction != "正確":
             print(f"所有圖片已根據檢測結果進行旋轉: {rotation_direction}")
-            update_progress(process_id, "process", 60, f"圖片旋轉完成: {rotation_direction}")
+            update_progress(process_id, "process", final_progress, f"圖片旋轉完成: {rotation_direction}")
         else:
             print("圖片方向正確，無需旋轉")
-            update_progress(process_id, "process", 60, "圖片處理完成")
+            update_progress(process_id, "process", final_progress, "圖片處理完成")
         
         return processed_files
         
@@ -762,9 +776,10 @@ def upload_file():
         for file in valid_files:
             file_counter += 1
             
-            # 更新檔案處理進度
-            file_progress = int((file_counter - 1) / total_files * 10)  # 0-10%
-            update_progress(process_id, "upload", file_progress, f"處理檔案 {file_counter}/{total_files}: {file.filename}")
+            # 更新檔案處理進度 - 為每個檔案分配合理的進度範圍
+            file_start_progress = int((file_counter - 1) / total_files * 10)  # 當前檔案開始進度
+            file_end_progress = int(file_counter / total_files * 10)  # 當前檔案結束進度
+            update_progress(process_id, "upload", file_start_progress, f"處理檔案 {file_counter}/{total_files}: {file.filename}")
             
             # 保留原始檔名，並產生唯一的儲存檔名
             original_filename = file.filename
@@ -777,17 +792,22 @@ def upload_file():
             
             # 處理檔案
             if file_path.lower().endswith('.pdf'):
-                # PDF 處理
+                # PDF 處理 - 為每個檔案分配10-60%範圍內的子進度
                 import fitz
-                update_progress(process_id, "process", 10, f"開始處理 PDF: {original_filename}")
+                file_process_start = 10 + int((file_counter - 1) / total_files * 50)  # 當前檔案在10-60%範圍內的起始點
+                file_process_range = int(50 / total_files)  # 當前檔案可用的進度範圍
+                
+                update_progress(process_id, "process", file_process_start, f"開始處理 PDF {file_counter}/{total_files}: {original_filename}")
                 pdf_document = fitz.open(file_path)
                 # 使用原始檔名（不含副檔名）作為基礎名稱
                 pdf_base_name = os.path.splitext(original_filename)[0]
                 total_pages = len(pdf_document)
                 
                 for page_num in range(total_pages):
-                    page_progress = 10 + int((page_num / total_pages) * 50)  # 10-60%
-                    update_progress(process_id, "process", page_progress, f"處理 PDF 第 {page_num + 1}/{total_pages} 頁")
+                    # 計算當前頁面在當前檔案進度範圍內的位置
+                    page_progress_in_file = int((page_num / total_pages) * file_process_range)
+                    current_progress = file_process_start + page_progress_in_file
+                    update_progress(process_id, "process", current_progress, f"處理檔案 {file_counter}/{total_files} 第 {page_num + 1}/{total_pages} 頁")
                     
                     page = pdf_document.load_page(page_num)
                     page_rect = page.rect
@@ -814,11 +834,19 @@ def upload_file():
                             # 單檔案：保持原有邏輯
                             image_name = f"{pdf_base_name}_page{page_num + 1}"
                             page_process_id = f"{process_id}_page{page_num + 1}"
-                        process_image_data(image, page_process_id, image_name)
+                        
+                        # 為每一頁分配適當的進度範圍
+                        page_progress_start = file_process_start + int((page_num / total_pages) * file_process_range)
+                        page_progress_range = max(1, int(file_process_range / total_pages))  # 確保至少有1%的進度範圍
+                        
+                        process_image_data(image, page_process_id, image_name, page_progress_start, page_progress_range)
                 
                 pdf_document.close()
             else:
-                # 單一圖像處理
+                # 單一圖像處理 - 為每個檔案分配10-60%範圍內的子進度
+                file_process_start = 10 + int((file_counter - 1) / total_files * 50)  # 當前檔案在10-60%範圍內的起始點
+                file_process_range = int(50 / total_files)  # 當前檔案可用的進度範圍
+                
                 image = cv2.imread(file_path)
                 if image is not None:
                     # 為多檔案場景調整處理ID和圖片名稱
@@ -830,7 +858,9 @@ def upload_file():
                         # 單檔案：保持原有邏輯
                         image_name = os.path.splitext(original_filename)[0]
                         image_process_id = process_id
-                    process_image_data(image, image_process_id, image_name)
+                    
+                    # 傳遞進度範圍給process_image_data函數
+                    process_image_data(image, image_process_id, image_name, file_process_start, file_process_range)
         
         # 在圖像處理完成後，立即執行 AI 分析
         update_progress(process_id, "analyze", 60, "開始 AI 分析")
@@ -872,9 +902,11 @@ def upload_file():
             if total_images > 0:
                 update_progress(process_id, "analyze", 65, f"準備分析 {total_images} 張圖片")
                 
+                processed_images = 0
                 for process_key, filenames in batch_analysis_requests.items():
                     if filenames:
-                        descriptions = get_descriptions_for_multiple_images(process_key, filenames)
+                        descriptions = get_descriptions_for_multiple_images(process_key, filenames, processed_images, total_images)
+                        processed_images += len(filenames)
                         
                         # 儲存AI分析結果
                         for filename, description in descriptions.items():
