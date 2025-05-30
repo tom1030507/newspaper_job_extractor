@@ -9,7 +9,7 @@
 
 ## 🎯 項目簡介
 
-這是一個智能化的報紙工作廣告提取系統，能夠自動從掃描的報紙圖像中提取工作廣告區塊，並使用AI技術分析其中的職缺資訊。系統已完全Docker化，支援一鍵部署，適合24/7生產環境運行。
+智能化的報紙工作廣告提取系統，能夠自動從掃描的報紙圖像中提取工作廣告區塊，並使用AI技術分析其中的職缺資訊。系統已完全Docker化，支援一鍵部署，適合24/7生產環境運行。
 
 ## ✨ 核心功能
 
@@ -29,7 +29,7 @@
 - **即時進度**: 詳細的處理進度顯示（上傳→處理→AI分析）
 - **結果預覽**: 網格佈局展示所有提取的區塊
 - **多格式下載**: CSV、SQL、圖片、描述文件一鍵下載
-- **Google Sheets整合**: 直接將資料發送到試算表
+- **Google Sheets整合**: 一鍵創建並發送資料到試算表
 
 ### 🐳 Docker部署
 - **一鍵啟動**: 完整的容器化解決方案
@@ -62,31 +62,28 @@
 3. **訪問應用**
    - 主頁面: http://localhost:5000
    - 健康檢查: http://localhost:5000/health
+  
+詳細的 Docker 部署說明請參考 [README-Docker.md](README-Docker.md)
 
 ### 本地開發環境
 
-1. **安裝依賴**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+# 1. 安裝依賴
+pip install -r requirements.txt
 
-2. **設置環境變數**
-   ```bash
-   cp env.example .env
-   # 編輯 .env 檔案，添加您的 Gemini API 密鑰
-   ```
+# 2. 設置環境變數
+cp env.example .env
+# 編輯 .env 檔案，添加您的 Gemini API 密鑰
 
-3. **啟動應用**
-   ```bash
-   python app.py
-   ```
+# 3. 啟動應用
+python app.py
+```
 
 ## 🖼️ 處理效果展示
 
-### 原始報紙 → 區塊提取
+### 原始報紙
 <div align="center">
   <img src="newspaper/newspaper1.jpg" alt="原始報紙" width="400" />
-  <br><em>原始掃描報紙</em>
 </div>
 
 ### 提取的工作廣告區塊
@@ -95,20 +92,67 @@
   <img src="newspaper/newspaper1.jpg_blocks/929_971_1615_1527.jpg" alt="工作區塊2" width="200" />
   <img src="newspaper/newspaper1.jpg_blocks/1618_2084_2284_2360.jpg" alt="工作區塊3" width="200" />
 </div>
-<div align="center"><em>自動提取的個別工作廣告</em></div>
 
-### 處理步驟可視化
-| 原始圖像 | 邊緣檢測 | 輪廓過濾 | 重建結果 |
-|---------|---------|---------|---------|
-| ![原始](newspaper/newspaper1.jpg_blocks/newspaper1_original.jpg) | ![邊緣](newspaper/newspaper1.jpg_blocks/newspaper1_mask_unprocessed.jpg) | ![輪廓](newspaper/newspaper1.jpg_blocks/newspaper1_mask_processed.jpg) | ![結果](newspaper/newspaper1.jpg_blocks/newspaper1_final_combined.jpg) |
+## 📊 AI分析結果
 
-## 📋 系統需求
+系統自動提取以下資訊：
+- **工作職位**: 職位名稱和職業類型
+- **行業分類**: 19個標準行業類別自動歸類
+- **工作條件**: 工作時間、薪資待遇
+- **地理資訊**: 工作地點、服務區域
+- **聯絡資訊**: 電話、地址、其他聯絡方式
+- **額外資訊**: 工作要求、福利、備註
 
-- **Docker**: 20.10+ (推薦)
-- **Docker Compose**: 1.29+
-- **記憶體**: 最少1GB，推薦2GB
-- **存儲空間**: 最少5GB可用空間
-- **網絡**: 需要Internet連接以使用AI功能
+## 📥 下載與整合
+
+### 下載格式
+- **CSV表格**: Excel可直接開啟的結構化資料
+- **SQL資料庫**: 完整的建表和插入語句
+- **圖片檔案**: 所有提取的工作區塊圖像
+- **AI描述**: 詳細的文字分析結果
+
+### 🔗 Google Sheets 自動整合
+
+#### 快速使用
+1. 處理圖片完成後，在結果頁面點擊「創建 Google Sheets」
+2. 系統自動創建新的試算表並匯入所有職缺資料
+3. 提供直接連結，一鍵開啟 Google Sheets
+
+#### 試算表內容
+- **職缺資料工作表**: 包含工作、行業、薪資、地點等完整資訊
+- **處理摘要工作表**: 顯示處理統計和行業分布
+- **自動格式化**: 標題行樣式、顏色和邊框
+- **權限設定**: 自動設為「有連結的人都可檢視」
+
+#### 自訂 Google Apps Script（可選）
+
+如果您想使用自己的 Google Apps Script：
+
+1. **創建 Apps Script 專案**
+   - 前往 [Google Apps Script](https://script.google.com/)
+   - 創建新專案，複製 `google_apps_script.js` 內容
+
+2. **部署為網路應用程式**
+   - 選擇「部署」→「新增部署」→「網路應用程式」
+   - 執行身分：我，存取權限：任何人
+   - 複製網路應用程式 URL
+
+3. **在系統中使用**
+   - 在結果頁面展開「自訂 Google Apps Script URL」選項
+   - 輸入您的 URL 並創建
+
+#### 資料格式
+| 欄位 | 說明 | 範例 |
+|------|------|------|
+| 工作 | 職位名稱 | 軟體工程師 |
+| 行業 | 行業分類 | 資訊科技業 |
+| 時間 | 工作時間 | 週一至週五 9:00-18:00 |
+| 薪資 | 薪資待遇 | 月薪 50,000-70,000 元 |
+| 地點 | 工作地點 | 台北市信義區 |
+| 聯絡方式 | 聯絡資訊 | 02-1234-5678 |
+| 其他 | 其他資訊 | 需具備 Python 經驗 |
+| 來源圖片 | 來源檔名 | job_block_1.jpg |
+| 頁碼 | PDF 頁碼 | 1 |
 
 ## 🔧 配置選項
 
@@ -129,41 +173,17 @@ MAX_CONTENT_LENGTH=16777216
 - **並行處理**: 啟用/停用多線程AI分析
 - **除錯模式**: 保存處理步驟的中間圖像
 
-## 📊 AI分析結果
+## 📋 系統需求
 
-系統自動提取以下資訊：
-- **工作職位**: 職位名稱和職業類型
-- **行業分類**: 19個標準行業類別自動歸類
-- **工作條件**: 工作時間、薪資待遇
-- **地理資訊**: 工作地點、服務區域
-- **聯絡資訊**: 電話、地址、其他聯絡方式
-- **額外資訊**: 工作要求、福利、備註
+- **Docker**: 20.10+ (推薦)
+- **Docker Compose**: 1.29+
+- **記憶體**: 最少1GB，推薦2GB
+- **存儲空間**: 最少5GB可用空間
+- **網絡**: 需要Internet連接以使用AI功能
 
-## 📥 下載格式
+## 🛠️ 管理和監控
 
-支援多種格式的結果下載：
-- **CSV表格**: Excel可直接開啟的結構化資料
-- **SQL資料庫**: 完整的建表和插入語句
-- **圖片檔案**: 所有提取的工作區塊圖像
-- **AI描述**: 詳細的文字分析結果
-- **處理步驟**: 圖像處理的各階段圖片
-
-## 🔗 Google Sheets 整合
-
-### 設置步驟
-1. 參考 [Google Sheets設置指南](Google_Spreadsheet_Setup_Guide.md)
-2. 部署您的Google Apps Script
-3. 在結果頁面點擊"發送到Google Sheets"
-4. 輸入您的Apps Script URL
-
-### 資料格式
-發送到Google Sheets的資料包含：
-- 新增時間、工作、行業、時間、薪資、地點
-- 聯絡方式、其他資訊、來源圖片、頁碼
-- 工作編號、圖片編號、處理編號、來源系統
-
-## 🛠️ Docker 管理指令
-
+### 基本指令
 ```bash
 # 基本操作
 docker-compose ps                # 查看狀態
@@ -181,16 +201,10 @@ docker-compose -f docker-compose.prod.yml up -d
 docker system prune -a          # 清理Docker資源
 ```
 
-## 🔍 監控和管理
-
-### 管理員介面
+### 監控介面
+- `/health` - 應用程式健康狀態
 - `/admin/storage` - 查看存儲使用狀況
 - `/admin/cleanup` - 手動執行清理
-- `/admin/cleanup/auto` - 切換自動清理
-
-### 健康檢查
-- `/health` - 應用程式健康狀態
-- `/api/status` - API服務狀態
 
 ### 自動清理
 - 每4小時自動清理舊檔案
@@ -203,13 +217,6 @@ docker system prune -a          # 清理Docker資源
 - **資源限制**: CPU和記憶體使用限制
 - **網絡隔離**: 獨立的Docker網絡
 - **檔案權限**: 適當的檔案系統權限
-- **自動更新**: 系統依賴自動更新
-
-## 📚 詳細文檔
-
-- [Docker部署指南](README-Docker.md) - 詳細的容器部署說明
-- [Google Sheets整合](Google_Spreadsheet_Setup_Guide.md) - 試算表整合設置
-- [Apps Script設置](GOOGLE_APPS_SCRIPT_SETUP.md) - Google Apps Script部署
 
 ## 🤝 技術支援
 
@@ -217,7 +224,7 @@ docker system prune -a          # 清理Docker資源
 1. **端口衝突**: 修改docker-compose.yml中的端口映射
 2. **記憶體不足**: 調整Docker資源分配
 3. **API配額**: 檢查Gemini API使用限制
-4. **權限問題**: 確保Docker有適當的檔案權限
+4. **Google Sheets問題**: 檢查網路連線和API狀態
 
 ### 疑難排解
 ```bash
@@ -229,9 +236,6 @@ docker-compose logs --tail=50 newspaper-extractor
 
 # 重建映像
 docker-compose build --no-cache
-
-# 完全重置
-docker-compose down && docker system prune -a
 ```
 
 ## 📈 性能指標
@@ -240,7 +244,6 @@ docker-compose down && docker system prune -a
 - **記憶體使用**: 大文件處理時僅5MB
 - **並發支持**: 支援多用戶同時使用
 - **可用性**: 24/7運行能力
-- **自動恢復**: 容器自動重啟機制
 
 ## 🎯 應用場景
 
@@ -248,7 +251,6 @@ docker-compose down && docker system prune -a
 - **人力資源**: 工作市場分析
 - **學術研究**: 就業趨勢研究
 - **資料採集**: 大規模工作資訊收集
-- **檔案管理**: 報紙內容結構化存儲
 
 ## 📄 授權條款
 
