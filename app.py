@@ -475,7 +475,7 @@ def get_descriptions_for_multiple_images(process_id, image_names, already_proces
         start_time = time.time()
         
         # 使用 ThreadPoolExecutor 並行處理多張圖片
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, len(image_names))) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(image_names))) as executor:
             # 創建部分函數，固定 api_key 和 process_id 參數
             get_desc_func = partial(get_image_description_for_single_image, api_key, process_id)
             
