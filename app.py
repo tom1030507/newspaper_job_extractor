@@ -22,6 +22,7 @@ from functools import partial
 import time
 from flask_socketio import SocketIO, emit
 import pandas as pd
+import schedule
 
 # 載入環境變數
 load_dotenv()
@@ -40,7 +41,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # 設定Gemini API相關配置
 
 # 全局變數存儲圖片和工作資訊
-image_storage = {}
+image_storage = {}  # 改為存儲檔案路徑和元數據
 job_storage = {}
 
 # 進度追蹤字典 - 存儲每個 process_id 的進度資訊
@@ -48,8 +49,7 @@ progress_storage = {}
 
 # 確保上傳目錄存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-# 檢查是否設置了環境變數
+os.makedirs(app.config['RESULTS_FOLDER'], exist_ok=True)  # 確保結果目錄存在
 
 def update_progress(process_id, step, progress, description=""):
     """更新處理進度並通過 SocketIO 發送到前端"""
@@ -311,8 +311,27 @@ def get_image_description_for_single_image(api_key, process_id, image_name):
         MODEL = genai.GenerativeModel('gemini-2.0-flash-lite')
         
         # 取得圖片資料
-        image_data = image_storage[process_id][image_name]['binary']
-        img = Image.open(BytesIO(image_data))
+        if process_id in image_storage and image_name in image_storage[process_id]:
+            image_info = image_storage[process_id][image_name]
+            
+            # 優先從本地檔案讀取
+            if 'file_path' in image_info and os.path.exists(image_info['file_path']):
+                img = Image.open(image_info['file_path'])
+            elif 'binary' in image_info:  # 向後兼容舊數據
+                image_data = image_info['binary']
+                img = Image.open(BytesIO(image_data))
+            else:
+                return image_name, [{
+                    "工作": "無法讀取圖片",
+                    "行業": "", "時間": "", "薪資": "",
+                    "地點": "", "聯絡方式": "", "其他": "圖片檔案不存在"
+                }]
+        else:
+            return image_name, [{
+                "工作": "圖片不存在",
+                "行業": "", "時間": "", "薪資": "",
+                "地點": "", "聯絡方式": "", "其他": ""
+            }]
         
         # 調用Gemini API
         prompt = """請先仔細判斷這張圖片是否包含工作招聘、求職、就業相關的資訊。
@@ -573,9 +592,20 @@ def process_image_data(image, process_id, image_name, progress_start=10, progres
         segment_done_progress = progress_start + int(progress_range * 0.8)
         update_progress(process_id, "process", segment_done_progress, "區塊分割處理完成")
         
-        # 將處理結果儲存
+        # 將處理結果儲存到本地檔案系統
         if process_id not in image_storage:
             image_storage[process_id] = {}
+        
+        # 創建此次處理的結果目錄
+        # 提取原始process_id（去除_page或_file後綴）
+        base_process_id = process_id
+        if '_page' in process_id:
+            base_process_id = process_id.split('_page')[0]
+        elif '_file' in process_id:
+            base_process_id = process_id.split('_file')[0]
+        
+        process_result_dir = os.path.join(app.config['RESULTS_FOLDER'], base_process_id, process_id)
+        os.makedirs(process_result_dir, exist_ok=True)
         
         # 遍歷臨時目錄中的所有圖片檔案
         processed_files = []
@@ -595,16 +625,21 @@ def process_image_data(image, process_id, image_name, progress_start=10, progres
                     # 對處理後的圖片應用旋轉
                     rotated_image = apply_rotation_to_image(processed_image, rotation_direction)
                     
-                    # 將旋轉後的圖片編碼為二進制資料
+                    # 將旋轉後的圖片保存到結果目錄
+                    result_file_path = os.path.join(process_result_dir, filename)
+                    cv2.imwrite(result_file_path, rotated_image)
+                    
+                    # 生成base64編碼（用於網頁顯示）
                     _, buffer = cv2.imencode('.jpg', rotated_image)
                     image_data = buffer.tobytes()
                     base64_data = base64.b64encode(image_data).decode('utf-8')
                     
-                    # 儲存圖片資料
+                    # 儲存檔案路徑和元數據（不存儲binary資料）
                     image_storage[process_id][filename] = {
-                        'base64': base64_data,
-                        'binary': image_data,
-                        'format': 'jpg'
+                        'file_path': result_file_path,
+                        'base64': base64_data,  # 暫時保留base64用於網頁顯示
+                        'format': 'jpg',
+                        'size': len(image_data)
                     }
                     processed_files.append(filename)
                     processed_count += 1
@@ -1183,34 +1218,25 @@ def results(process_id):
 def view_image(process_id, filename):
     # 檢查是否存在該圖片
     if process_id in image_storage and filename in image_storage[process_id]:
-        image_data = image_storage[process_id][filename]['binary']
-        format_type = image_storage[process_id][filename]['format']
-        
-        response = make_response(image_data)
-        response.headers['Content-Type'] = f'image/{format_type}'
-        return response
+        file_path = image_storage[process_id][filename]['file_path']
+        if os.path.exists(file_path):
+            return send_file(file_path, mimetype='image/jpeg')
     
     # 檢查PDF頁面
     pdf_page_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_page")]
     for page_key in pdf_page_keys:
         if filename in image_storage[page_key]:
-            image_data = image_storage[page_key][filename]['binary']
-            format_type = image_storage[page_key][filename]['format']
-            
-            response = make_response(image_data)
-            response.headers['Content-Type'] = f'image/{format_type}'
-            return response
+            file_path = image_storage[page_key][filename]['file_path']
+            if os.path.exists(file_path):
+                return send_file(file_path, mimetype='image/jpeg')
     
     # 檢查多檔案
     multi_file_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_file")]
     for file_key in multi_file_keys:
         if filename in image_storage[file_key]:
-            image_data = image_storage[file_key][filename]['binary']
-            format_type = image_storage[file_key][filename]['format']
-            
-            response = make_response(image_data)
-            response.headers['Content-Type'] = f'image/{format_type}'
-            return response
+            file_path = image_storage[file_key][filename]['file_path']
+            if os.path.exists(file_path):
+                return send_file(file_path, mimetype='image/jpeg')
     
     return "圖像不存在", 404
 
@@ -1421,8 +1447,15 @@ VALUES ({escape_sql(job.get('工作', ''))}, {escape_sql(job.get('行業', ''))}
         # 3. 工作區塊圖片
         if 'images' in include_options:
             for image in all_images:
-                arcname = f"images/{image['filename']}"
-                zf.writestr(arcname, image['data']['binary'])
+                # 從本地檔案讀取圖片數據
+                if 'file_path' in image['data'] and os.path.exists(image['data']['file_path']):
+                    arcname = f"images/{image['filename']}"
+                    with open(image['data']['file_path'], 'rb') as f:
+                        image_binary = f.read()
+                    zf.writestr(arcname, image_binary)
+                elif 'binary' in image['data']:  # 向後兼容舊數據
+                    arcname = f"images/{image['filename']}"
+                    zf.writestr(arcname, image['data']['binary'])
         
         # 4. AI 分析描述
         if 'descriptions' in include_options:
@@ -1459,8 +1492,15 @@ VALUES ({escape_sql(job.get('工作', ''))}, {escape_sql(job.get('行業', ''))}
         # 5. 處理步驟圖片
         if 'processing_steps' in include_options:
             for debug_img in debug_images:
-                arcname = f"processing_steps/{debug_img['filename']}"
-                zf.writestr(arcname, debug_img['data']['binary'])
+                # 從本地檔案讀取圖片數據
+                if 'file_path' in debug_img['data'] and os.path.exists(debug_img['data']['file_path']):
+                    arcname = f"processing_steps/{debug_img['filename']}"
+                    with open(debug_img['data']['file_path'], 'rb') as f:
+                        image_binary = f.read()
+                    zf.writestr(arcname, image_binary)
+                elif 'binary' in debug_img['data']:  # 向後兼容舊數據
+                    arcname = f"processing_steps/{debug_img['filename']}"
+                    zf.writestr(arcname, debug_img['data']['binary'])
         
         # 6. 說明文件
         if 'readme' in include_options:
@@ -1579,19 +1619,73 @@ def cleanup_old_data(max_age_hours=24):
     # 在實際使用中，您可能需要追蹤每個 process_id 的創建時間
     pass
 
-# 定期清理功能（可以通過排程任務調用）
-def cleanup_old_files(max_age_hours=24):
+def cleanup_old_files(max_age_hours=4):
+    """清理超過指定時間的檔案"""
     import time
     from datetime import datetime, timedelta
     
     cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
     cutoff_timestamp = cutoff_time.timestamp()
     
+    print(f"開始清理超過 {max_age_hours} 小時的檔案...")
+    
     # 清理上傳目錄
-    for item in os.listdir(app.config['UPLOAD_FOLDER']):
-        item_path = os.path.join(app.config['UPLOAD_FOLDER'], item)
-        if os.path.isdir(item_path) and os.path.getctime(item_path) < cutoff_timestamp:
-            shutil.rmtree(item_path)
+    if os.path.exists(app.config['UPLOAD_FOLDER']):
+        for item in os.listdir(app.config['UPLOAD_FOLDER']):
+            item_path = os.path.join(app.config['UPLOAD_FOLDER'], item)
+            if os.path.isdir(item_path) and os.path.getctime(item_path) < cutoff_timestamp:
+                shutil.rmtree(item_path)
+                print(f"清理上傳目錄: {item_path}")
+    
+    # 清理結果目錄
+    if os.path.exists(app.config['RESULTS_FOLDER']):
+        for item in os.listdir(app.config['RESULTS_FOLDER']):
+            item_path = os.path.join(app.config['RESULTS_FOLDER'], item)
+            if os.path.isdir(item_path) and os.path.getctime(item_path) < cutoff_timestamp:
+                shutil.rmtree(item_path)
+                print(f"清理結果目錄: {item_path}")
+                
+                # 同時從memory storage中移除對應的記錄
+                cleanup_memory_storage(item)
+
+def cleanup_memory_storage(process_id):
+    """清理記憶體中的過期資料"""
+    # 清理所有相關的process_id記錄
+    keys_to_remove = []
+    for key in image_storage.keys():
+        if key == process_id or key.startswith(f"{process_id}_"):
+            keys_to_remove.append(key)
+    
+    for key in keys_to_remove:
+        del image_storage[key]
+        print(f"清理記憶體資料: {key}")
+    
+    # 清理進度記錄
+    if process_id in progress_storage:
+        del progress_storage[process_id]
+    
+    # 清理工作資料
+    if process_id in job_storage:
+        del job_storage[process_id]
+
+def get_storage_info():
+    """獲取存儲使用情況"""
+    total_files = 0
+    total_size = 0
+    
+    if os.path.exists(app.config['RESULTS_FOLDER']):
+        for root, dirs, files in os.walk(app.config['RESULTS_FOLDER']):
+            for file in files:
+                file_path = os.path.join(root, file)
+                if os.path.exists(file_path):
+                    total_files += 1
+                    total_size += os.path.getsize(file_path)
+    
+    return {
+        'total_files': total_files,
+        'total_size_mb': round(total_size / (1024 * 1024), 2),
+        'memory_processes': len(image_storage)
+    }
 
 @app.route('/send_to_spreadsheet/<process_id>', methods=['POST'])
 def send_to_spreadsheet(process_id):
@@ -1830,5 +1924,105 @@ def handle_get_progress(data):
             **progress_storage[process_id]
         })
 
+@app.route('/admin/storage')
+def admin_storage():
+    """管理員查看存儲狀態"""
+    from datetime import datetime
+    
+    storage_info = get_storage_info()
+    
+    # 獲取最近的處理記錄
+    recent_processes = []
+    if os.path.exists(app.config['RESULTS_FOLDER']):
+        for item in os.listdir(app.config['RESULTS_FOLDER']):
+            item_path = os.path.join(app.config['RESULTS_FOLDER'], item)
+            if os.path.isdir(item_path):
+                recent_processes.append({
+                    'process_id': item,
+                    'created_time': datetime.fromtimestamp(os.path.getctime(item_path)).isoformat(),
+                    'size_mb': round(sum(os.path.getsize(os.path.join(root, file)) 
+                                       for root, dirs, files in os.walk(item_path) 
+                                       for file in files) / (1024 * 1024), 2)
+                })
+    
+    # 按創建時間排序
+    recent_processes.sort(key=lambda x: x['created_time'], reverse=True)
+    
+    return jsonify({
+        'storage_info': storage_info,
+        'recent_processes': recent_processes[:10],  # 只顯示最近10個
+        'status': 'success'
+    })
+
+@app.route('/admin/cleanup', methods=['POST'])
+def admin_cleanup():
+    """手動清理舊檔案"""
+    try:
+        max_age_hours = request.json.get('max_age_hours', 4) if request.json else 4
+        cleanup_old_files(max_age_hours)
+        
+        # 獲取清理後的存儲資訊
+        storage_info = get_storage_info()
+        
+        return jsonify({
+            'message': f'已清理超過 {max_age_hours} 小時的檔案',
+            'storage_info': storage_info,
+            'status': 'success'
+        })
+    except Exception as e:
+        return jsonify({
+            'error': f'清理失敗: {str(e)}',
+            'status': 'error'
+        }), 500
+
+def start_cleanup_scheduler():
+    """啟動定時清理任務"""
+    def run_scheduled_cleanup():
+        print("執行定時清理任務...")
+        cleanup_old_files(4)  # 清理超過4小時的檔案
+    
+    # 設置每4小時執行一次清理
+    schedule.every(4).hours.do(run_scheduled_cleanup)
+    
+    # 在背景執行緒中運行排程器
+    def schedule_runner():
+        while True:
+            schedule.run_pending()
+            time.sleep(60)  # 每分鐘檢查一次
+    
+    cleanup_thread = threading.Thread(target=schedule_runner, daemon=True)
+    cleanup_thread.start()
+    print("定時清理任務已啟動，每4小時執行一次")
+
+@app.route('/admin/cleanup/auto', methods=['POST'])
+def toggle_auto_cleanup():
+    """切換自動清理功能"""
+    try:
+        enabled = request.json.get('enabled', True) if request.json else True
+        
+        if enabled:
+            start_cleanup_scheduler()
+            message = "自動清理已啟用，每4小時執行一次"
+        else:
+            schedule.clear()
+            message = "自動清理已停用"
+        
+        return jsonify({
+            'message': message,
+            'auto_cleanup_enabled': enabled,
+            'status': 'success'
+        })
+    except Exception as e:
+        return jsonify({
+            'error': f'切換自動清理失敗: {str(e)}',
+            'status': 'error'
+        }), 500
+
 if __name__ == '__main__':
+    # 啟動定時清理任務
+    start_cleanup_scheduler()
+    
+    # 立即執行一次清理（清理啟動時的舊檔案）
+    cleanup_old_files(4)
+    
     socketio.run(app, debug=True, host='0.0.0.0', port=5000) 
