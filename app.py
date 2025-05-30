@@ -20,6 +20,8 @@ import threading
 import concurrent.futures
 from functools import partial
 import time
+from flask_socketio import SocketIO, emit
+import pandas as pd
 
 # 載入環境變數
 load_dotenv()
@@ -32,13 +34,50 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制上傳檔案大小�
 app.config['ALLOWED_EXTENSIONS'] = {'pdf', 'png', 'jpg', 'jpeg'}
 app.config['SECRET_KEY'] = secrets.token_hex(16)  # 添加密鑰用於session加密
 
+# 初始化 SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*")
+
 # 設定Gemini API相關配置
 
-# 儲存處理後的圖片資料
+# 全局變數存儲圖片和工作資訊
 image_storage = {}
+job_storage = {}
+
+# 進度追蹤字典 - 存儲每個 process_id 的進度資訊
+progress_storage = {}
 
 # 確保上傳目錄存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# 檢查是否設置了環境變數
+
+def update_progress(process_id, step, progress, description=""):
+    """更新處理進度並通過 SocketIO 發送到前端"""
+    
+    # 提取原始的 process_id（移除 _page 或 _file 後綴）
+    original_process_id = process_id
+    if '_page' in process_id:
+        original_process_id = process_id.split('_page')[0]
+    elif '_file' in process_id:
+        original_process_id = process_id.split('_file')[0]
+    
+    progress_data = {
+        'step': step,
+        'progress': progress,
+        'description': description,
+        'timestamp': time.time()
+    }
+    
+    # 儲存進度資訊（使用原始process_id）
+    progress_storage[original_process_id] = progress_data
+    
+    # 通過 SocketIO 發送到前端（使用原始process_id）
+    socketio.emit('progress_update', {
+        'process_id': original_process_id,
+        **progress_data
+    })
+    
+    print(f"進度更新 [{original_process_id}]: {step} - {progress}% - {description}")
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -401,6 +440,9 @@ def get_descriptions_for_multiple_images(process_id, image_names):
             "其他": "請在首頁設置API密鑰"
         }] for name in image_names}
     
+    # 更新進度：開始 AI 分析
+    update_progress(process_id, "analyze", 60, f"開始 AI 分析 {len(image_names)} 張圖片")
+    
     # 檢查是否啟用並行處理
     parallel_process = session.get('parallel_process', True)  # 默認啟用
     
@@ -420,11 +462,20 @@ def get_descriptions_for_multiple_images(process_id, image_names):
             }
             
             results = {}
+            completed_count = 0
+            total_images = len(image_names)
+            
             # 收集結果
             for future in concurrent.futures.as_completed(future_to_image):
+                completed_count += 1
                 try:
                     image_name, description = future.result()
                     results[image_name] = description
+                    
+                    # 更新 AI 分析進度 (60-95%)
+                    progress = 60 + int((completed_count / total_images) * 35)
+                    update_progress(process_id, "analyze", progress, f"已分析 {completed_count}/{total_images} 張圖片")
+                    
                 except Exception as e:
                     image_name = future_to_image[future]
                     print(f"處理 {image_name} 時出錯: {str(e)}")
@@ -448,6 +499,11 @@ def get_descriptions_for_multiple_images(process_id, image_names):
         results = {}
         for i, image_name in enumerate(image_names, 1):
             print(f"處理圖片 {i}/{len(image_names)}: {image_name}")
+            
+            # 更新 AI 分析進度 (60-95%)
+            progress = 60 + int((i - 1) / len(image_names) * 35)
+            update_progress(process_id, "analyze", progress, f"分析圖片 {i}/{len(image_names)}: {image_name}")
+            
             try:
                 image_name, description = get_image_description_for_single_image(api_key, process_id, image_name)
                 results[image_name] = description
@@ -466,6 +522,9 @@ def get_descriptions_for_multiple_images(process_id, image_names):
         end_time = time.time()
         print(f"序列描述處理完成，耗時: {end_time - start_time:.2f}秒")
     
+    # AI 分析完成
+    update_progress(process_id, "analyze", 95, "AI 分析完成")
+    
     return results
 
 def process_image_data(image, process_id, image_name):
@@ -474,17 +533,23 @@ def process_image_data(image, process_id, image_name):
     import tempfile
     import shutil
     
+    # 更新進度：開始圖像處理
+    update_progress(process_id, "process", 10, f"開始處理圖像: {image_name}")
+    
     # 檢查是否啟用自動校正方向
     auto_rotate = session.get('auto_rotate', True)  # 默認啟用
     
     if auto_rotate:
         # 首先檢查圖片需要旋轉的方向，但不立即旋轉
         print(f"開始檢查圖片方向: {image_name}")
+        update_progress(process_id, "process", 20, f"檢查圖片方向: {image_name}")
         rotation_direction = check_and_get_rotation_direction(image)
         print(f"檢測到需要旋轉方向: {rotation_direction}")
+        update_progress(process_id, "process", 20, f"方向檢測完成: {rotation_direction}")
     else:
         print(f"自動校正方向已停用，跳過方向檢查: {image_name}")
         rotation_direction = "正確"
+        update_progress(process_id, "process", 20, "跳過方向檢測")
     
     # 創建臨時目錄進行處理
     temp_dir = tempfile.mkdtemp()
@@ -492,7 +557,9 @@ def process_image_data(image, process_id, image_name):
     try:
         # 使用原始圖片進行處理（不旋轉）
         print("使用原始圖片進行區塊分割處理...")
+        update_progress(process_id, "process", 42, "執行區塊分割處理")
         original_process_image(image, temp_dir, image_name)
+        update_progress(process_id, "process", 50, "區塊分割處理完成")
         
         # 將處理結果儲存
         if process_id not in image_storage:
@@ -500,6 +567,11 @@ def process_image_data(image, process_id, image_name):
         
         # 遍歷臨時目錄中的所有圖片檔案
         processed_files = []
+        total_files = len([f for f in os.listdir(temp_dir) if f.endswith(('.jpg', '.jpeg', '.png'))])
+        processed_count = 0
+        
+        update_progress(process_id, "process", 52, f"處理 {total_files} 個輸出檔案")
+        
         for filename in os.listdir(temp_dir):
             if filename.endswith(('.jpg', '.jpeg', '.png')):
                 file_path = os.path.join(temp_dir, filename)
@@ -522,14 +594,21 @@ def process_image_data(image, process_id, image_name):
                         'format': 'jpg'
                     }
                     processed_files.append(filename)
+                    processed_count += 1
+                    
+                    # 更新進度
+                    progress = 52 + int((processed_count / total_files) * 8)  # 52-60%
+                    update_progress(process_id, "process", progress, f"已處理 {processed_count}/{total_files} 個檔案")
                 else:
                     print(f"無法讀取處理後的圖片: {filename}")
         
         print(f"處理完成，共處理了 {len(processed_files)} 張圖片")
         if rotation_direction != "正確":
             print(f"所有圖片已根據檢測結果進行旋轉: {rotation_direction}")
+            update_progress(process_id, "process", 60, f"圖片旋轉完成: {rotation_direction}")
         else:
             print("圖片方向正確，無需旋轉")
+            update_progress(process_id, "process", 60, "圖片處理完成")
         
         return processed_files
         
@@ -665,6 +744,9 @@ def upload_file():
     # 創建唯一的處理ID
     process_id = str(uuid.uuid4())
     
+    # 初始化進度追蹤
+    update_progress(process_id, "upload", 5, "開始處理檔案")
+    
     # 創建處理目錄
     process_dir = os.path.join(app.config['UPLOAD_FOLDER'], process_id)
     os.makedirs(process_dir, exist_ok=True)
@@ -673,9 +755,16 @@ def upload_file():
     
     try:
         file_counter = 0  # 用於為不同檔案創建唯一的處理ID
+        total_files = len(valid_files)
+        
+        update_progress(process_id, "upload", 10, f"準備處理 {total_files} 個檔案")
         
         for file in valid_files:
             file_counter += 1
+            
+            # 更新檔案處理進度
+            file_progress = int((file_counter - 1) / total_files * 10)  # 0-10%
+            update_progress(process_id, "upload", file_progress, f"處理檔案 {file_counter}/{total_files}: {file.filename}")
             
             # 保留原始檔名，並產生唯一的儲存檔名
             original_filename = file.filename
@@ -690,11 +779,16 @@ def upload_file():
             if file_path.lower().endswith('.pdf'):
                 # PDF 處理
                 import fitz
+                update_progress(process_id, "process", 10, f"開始處理 PDF: {original_filename}")
                 pdf_document = fitz.open(file_path)
                 # 使用原始檔名（不含副檔名）作為基礎名稱
                 pdf_base_name = os.path.splitext(original_filename)[0]
+                total_pages = len(pdf_document)
                 
-                for page_num in range(len(pdf_document)):
+                for page_num in range(total_pages):
+                    page_progress = 10 + int((page_num / total_pages) * 50)  # 10-60%
+                    update_progress(process_id, "process", page_progress, f"處理 PDF 第 {page_num + 1}/{total_pages} 頁")
+                    
                     page = pdf_document.load_page(page_num)
                     page_rect = page.rect
                     width_inch = page_rect.width / 72
@@ -738,6 +832,61 @@ def upload_file():
                         image_process_id = process_id
                     process_image_data(image, image_process_id, image_name)
         
+        # 在圖像處理完成後，立即執行 AI 分析
+        update_progress(process_id, "analyze", 60, "開始 AI 分析")
+        
+        # 收集所有需要分析的圖片
+        all_image_keys = []
+        
+        # 檢查是否為PDF或多檔案
+        pdf_page_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_page")]
+        multi_file_keys = [key for key in image_storage.keys() if key.startswith(f"{process_id}_file")]
+        
+        if pdf_page_keys or multi_file_keys or process_id in image_storage:
+            # 收集所有圖片進行批量分析
+            batch_analysis_requests = {}  # {process_key: [filenames]}
+            
+            # 處理PDF頁面
+            for page_key in pdf_page_keys:
+                filenames = [fname for fname in image_storage[page_key].keys() 
+                           if not any(debug_type in fname for debug_type in ['_original', '_mask_', '_final_combined'])]
+                if filenames:
+                    batch_analysis_requests[page_key] = filenames
+            
+            # 處理多檔案
+            for file_key in multi_file_keys:
+                filenames = [fname for fname in image_storage[file_key].keys() 
+                           if not any(debug_type in fname for debug_type in ['_original', '_mask_', '_final_combined'])]
+                if filenames:
+                    batch_analysis_requests[file_key] = filenames
+            
+            # 處理單一圖像
+            if process_id in image_storage and not pdf_page_keys and not multi_file_keys:
+                filenames = [fname for fname in image_storage[process_id].keys() 
+                           if not any(debug_type in fname for debug_type in ['_original', '_mask_', '_final_combined'])]
+                if filenames:
+                    batch_analysis_requests[process_id] = filenames
+            
+            # 執行批量AI分析
+            total_images = sum(len(filenames) for filenames in batch_analysis_requests.values())
+            if total_images > 0:
+                update_progress(process_id, "analyze", 65, f"準備分析 {total_images} 張圖片")
+                
+                for process_key, filenames in batch_analysis_requests.items():
+                    if filenames:
+                        descriptions = get_descriptions_for_multiple_images(process_key, filenames)
+                        
+                        # 儲存AI分析結果
+                        for filename, description in descriptions.items():
+                            if process_key in image_storage and filename in image_storage[process_key]:
+                                image_storage[process_key][filename]['description'] = description
+        
+        # AI 分析完成
+        update_progress(process_id, "analyze", 95, "AI 分析完成")
+        
+        # 處理完成
+        update_progress(process_id, "complete", 100, "所有檔案處理完成")
+        
         # 處理成功，顯示成功訊息
         if len(valid_files) > 1:
             flash(f'成功處理了 {len(valid_files)} 個檔案', 'success')
@@ -748,6 +897,7 @@ def upload_file():
         return redirect(url_for('results', process_id=process_id))
         
     except Exception as e:
+        update_progress(process_id, "error", 0, f"處理錯誤: {str(e)}")
         flash(f'處理檔案時發生錯誤: {str(e)}', 'danger')
         return redirect(url_for('index'))
     
@@ -864,90 +1014,59 @@ def results(process_id):
     else:
         return "處理結果不存在", 404
     
-    # 批量處理所有圖片描述（多線程）
+    # 從快取中讀取已分析的結果（AI分析已在上傳時完成）
     if batch_requests:
-        print(f"準備批量處理 {len(batch_requests)} 張圖片...")
+        print(f"從快取中讀取 {len(batch_requests)} 張圖片的分析結果...")
         
-        # 按 process_id 分組，然後批量處理
-        grouped_requests = {}
+        # 直接從 image_storage 中讀取已分析的結果
         for process_key, filename, page_num, image_data in batch_requests:
-            if process_key not in grouped_requests:
-                grouped_requests[process_key] = []
-            grouped_requests[process_key].append((filename, page_num, image_data))
-        
-        # 對每個 process_id 進行批量處理
-        for process_key, files_info in grouped_requests.items():
-            filenames_to_process = []
-            # 檢查是否已經有儲存的描述
-            for fname, p_num, img_data in files_info:
-                if process_key in image_storage and fname in image_storage[process_key] and 'description' in image_storage[process_key][fname]:
-                    # 如果已有描述，直接使用
-                    description = image_storage[process_key][fname]['description']
-                else:
-                    filenames_to_process.append(fname)
-            
-            # 只對沒有描述的圖片調用API
-            if filenames_to_process:
-                new_descriptions = get_descriptions_for_multiple_images(process_key, filenames_to_process)
+            # 獲取已儲存的描述
+            description = []
+            if process_key in image_storage and filename in image_storage[process_key] and 'description' in image_storage[process_key][filename]:
+                description = image_storage[process_key][filename]['description']
             else:
-                new_descriptions = {}
-
-            # 將結果與頁碼和圖片資料關聯，並儲存描述
-            for filename, page_num, image_data in files_info:
-                if filename in new_descriptions:
-                    description = new_descriptions[filename]
-                    # 儲存新獲取的描述到 image_storage
-                    if process_key in image_storage and filename in image_storage[process_key]:
-                        image_storage[process_key][filename]['description'] = description
-                    elif process_key not in image_storage: # 理論上 process_key 應該已經存在
-                        image_storage[process_key] = {filename: {'description': description}}
-                    else: # process_key 存在但 filename 不存在
-                        image_storage[process_key][filename] = {'description': description}
-
-                elif process_key in image_storage and filename in image_storage[process_key] and 'description' in image_storage[process_key][fname]:
-                    description = image_storage[process_key][filename]['description']
-                else:
-                    description = [{
-                        "工作": "處理失敗",
-                        "行業": "",
-                        "時間": "",
-                        "薪資": "",
-                        "地點": "",
-                        "聯絡方式": "",
-                        "其他": ""
-                    }]
+                # 如果沒有描述，可能是舊資料或分析失敗
+                description = [{
+                    "工作": "AI分析結果不存在",
+                    "行業": "",
+                    "時間": "",
+                    "薪資": "",
+                    "地點": "",
+                    "聯絡方式": "",
+                    "其他": "請重新上傳檔案進行分析"
+                }]
+            
+            # 檢查是否有有效的工作資訊
+            has_valid_jobs = any(is_valid_job(job) for job in description)
+            
+            if has_valid_jobs:
+                image_files.append({
+                    'filename': filename,
+                    'page': page_num,
+                    'base64': image_data['base64'],
+                    'format': image_data['format'],
+                    'description': description
+                })
                 
-                # 檢查是否有有效的工作資訊
-                has_valid_jobs = any(is_valid_job(job) for job in description)
-                
-                if has_valid_jobs:
-                    image_files.append({
-                        'filename': filename,
-                        'page': page_num,
-                        'base64': image_data['base64'],
-                        'format': image_data['format'],
-                        'description': description
-                    })
-                    
-                    # 將工作資訊加入統一列表
-                    for i, job in enumerate(description):
-                        # 只加入有效的工作資訊
-                        if is_valid_job(job):
-                            job_info = job.copy()
-                            if is_pdf:
-                                job_info['來源圖片'] = filename  # 移除頁碼顯示，只保留檔名
-                                job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
-                            else:
-                                job_info['來源圖片'] = filename
-                                job_info['圖片編號'] = filename.split('.')[0]
-                            
-                            if len([j for j in description if is_valid_job(j)]) > 1:
-                                valid_jobs = [j for j in description if is_valid_job(j)]
-                                job_index = valid_jobs.index(job) + 1
-                                job_info['工作編號'] = f"工作 {job_index}"
-                            else:
-                                job_info['工作編號'] = ""
-                            all_jobs.append(job_info)
+                # 將工作資訊加入統一列表
+                for i, job in enumerate(description):
+                    # 只加入有效的工作資訊
+                    if is_valid_job(job):
+                        job_info = job.copy()
+                        if is_pdf:
+                            job_info['來源圖片'] = filename
+                            job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
+                        else:
+                            job_info['來源圖片'] = filename
+                            job_info['圖片編號'] = filename.split('.')[0]
+                        
+                        if len([j for j in description if is_valid_job(j)]) > 1:
+                            valid_jobs = [j for j in description if is_valid_job(j)]
+                            job_index = valid_jobs.index(job) + 1
+                            job_info['工作編號'] = f"工作 {job_index}"
+                        else:
+                            job_info['工作編號'] = ""
+                        all_jobs.append(job_info)
     
     # 對圖片按工作數量從小到大排序
     def count_valid_jobs(image):
@@ -1659,5 +1778,25 @@ def send_to_spreadsheet(process_id):
     except Exception as e:
         return jsonify({'error': f'發生錯誤: {str(e)}'}), 500
 
+@socketio.on('connect')
+def handle_connect():
+    """處理客戶端連接"""
+    print(f"客戶端已連接: {request.sid}")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """處理客戶端斷開連接"""
+    print(f"客戶端已斷開: {request.sid}")
+
+@socketio.on('get_progress')
+def handle_get_progress(data):
+    """處理客戶端請求進度資訊"""
+    process_id = data.get('process_id')
+    if process_id in progress_storage:
+        emit('progress_update', {
+            'process_id': process_id,
+            **progress_storage[process_id]
+        })
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0') 
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000) 
