@@ -1,0 +1,43 @@
+services:
+  newspaper-extractor:
+    build: .
+    container_name: newspaper-job-extractor
+    ports:
+      - "5000:5000"
+    volumes:
+      # 持久化存儲
+      - ./data/uploads:/app/uploads
+      - ./data/results:/app/results
+      # 環境變數檔案
+      - ./.env:/app/.env:ro
+    environment:
+      - FLASK_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - app-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # 安全配置
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  uploads_data:
+  results_data: 

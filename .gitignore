@@ -62,4 +62,26 @@ Thumbs.db
 logs/
 log/
 tmp/
-temp/ 
+temp/
+
+# Docker 相關
+.env.local
+.env.production
+.env.development
+data/
+docker-compose.override.yml
+.docker/
+
+# 備份檔案
+backups/
+*.backup
+*.bak
+
+# 測試相關
+.coverage
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/ 

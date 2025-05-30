@@ -184,6 +184,63 @@ For detailed setup instructions, please refer to: [Google Sheets Setup Guide](Go
 - Processing large files may take some time, please be patient
 - To avoid excessive disk space usage, the system automatically cleans up processing results older than 24 hours
 
+## 🐳 Docker Deployment
+
+For easy deployment and containerization, this tool supports Docker.
+
+### Quick Start with Docker
+
+1. **Check Docker environment:**
+   ```bash
+   # Windows
+   .\docker-check.bat
+   
+   # Linux/macOS
+   docker --version && docker-compose --version
+   ```
+
+2. **Start the application:**
+   ```bash
+   # Windows
+   .\docker-start.bat
+   
+   # Linux/macOS
+   chmod +x docker-start.sh && ./docker-start.sh
+   
+   # Manual start
+   docker-compose up -d
+   ```
+
+3. **Access the application:**
+   - Main page: http://localhost:5000
+   - Health check: http://localhost:5000/health
+
+### Docker Benefits
+
+- **Consistent Environment**: Runs the same way on any Docker-supported system
+- **Easy Deployment**: One command starts the entire application
+- **Resource Isolation**: No conflicts with other applications
+- **Auto-cleanup**: Built-in 4-hour automatic cleanup for storage management
+- **Health Monitoring**: Automatic health checks and container restart
+
+### Basic Docker Commands
+
+```bash
+# View status
+docker-compose ps
+
+# View logs
+docker-compose logs -f
+
+# Stop service
+docker-compose down
+
+# Restart service
+docker-compose restart
+```
+
+For detailed Docker setup instructions, see: [README-Docker.md](README-Docker.md)
+
 ## Detailed Report
 [HackMD Link](https://hackmd.io/@OcvSVmsIRyeNNdWk7tMv2w/H1Zw-65Ckl)
 

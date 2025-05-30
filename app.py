@@ -2018,6 +2018,51 @@ def toggle_auto_cleanup():
             'status': 'error'
         }), 500
 
+@app.route('/health')
+def health_check():
+    """健康檢查端點 - 用於Docker健康檢查"""
+    try:
+        # 檢查基本功能
+        storage_info = get_storage_info()
+        
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'storage': storage_info,
+            'services': {
+                'flask': 'running',
+                'socketio': 'running',
+                'cleanup_scheduler': 'running' if schedule.jobs else 'stopped'
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/status')
+def api_status():
+    """API狀態端點"""
+    return jsonify({
+        'status': 'running',
+        'version': '1.0.0',
+        'features': {
+            'file_upload': True,
+            'pdf_processing': True,
+            'ai_analysis': True,
+            'auto_cleanup': True,
+            'multi_file': True,
+            'parallel_processing': True
+        },
+        'limits': {
+            'max_file_size_mb': app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024),
+            'max_files_per_upload': 10,
+            'supported_formats': list(app.config['ALLOWED_EXTENSIONS'])
+        }
+    })
+
 if __name__ == '__main__':
     # 啟動定時清理任務
     start_cleanup_scheduler()
@@ -2025,4 +2070,14 @@ if __name__ == '__main__':
     # 立即執行一次清理（清理啟動時的舊檔案）
     cleanup_old_files(4)
     
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000) 
+    # 從環境變數讀取配置
+    host = os.environ.get('FLASK_HOST', '0.0.0.0')
+    port = int(os.environ.get('FLASK_PORT', 5000))
+    debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    print(f"🚀 啟動報紙工作廣告提取系統...")
+    print(f"📡 伺服器地址: http://{host}:{port}")
+    print(f"🔧 除錯模式: {debug}")
+    print(f"🧹 自動清理: 每4小時執行")
+    
+    socketio.run(app, debug=debug, host=host, port=port) 
