@@ -778,9 +778,8 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: center;
+    background: none;
 }
-
-
 
 .success-info {
     flex: 1;
