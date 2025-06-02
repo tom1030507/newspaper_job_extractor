@@ -355,16 +355,60 @@ document.addEventListener('DOMContentLoaded', function() {
             // 更新描述文字
             const processingText = document.querySelector('.modal-body p');
             if (processingText && data.description) {
+                // 檢查是否為 API 限制錯誤重試狀態
+                const isRetryStatus = data.description.includes('API 請求頻率超限') || 
+                                    data.description.includes('等待') && data.description.includes('秒後');
+                const isRetryingStatus = data.description.includes('重新嘗試 API 請求');
+                
                 // 移除 text-muted 類別，讓文字更明顯
                 processingText.classList.remove('text-muted');
-                processingText.classList.add('text-primary', 'fw-bold');
-                processingText.innerHTML = data.description + '<br><small class="text-muted">請耐心等待，處理時間取決於文件大小和複雜度</small>';
+                
+                if (isRetryStatus) {
+                    // API 限制錯誤重試狀態 - 使用警告色
+                    processingText.classList.remove('text-primary', 'text-success');
+                    processingText.classList.remove('text-warning');
+                    processingText.classList.add('fw-bold');
+                    processingText.style.color = '#ff9800';
+                    processingText.innerHTML = `
+                        <i class="bi bi-clock-history me-2"></i>${data.description}
+                        <br><small class="text-muted">程式會自動重試，請耐心等待</small>
+                    `;
+                    
+                    // 為進度條添加脈動效果
+                    progressBar.classList.add('progress-bar-animated', 'progress-bar-striped');
+                    progressBar.style.backgroundColor = '#ff9800'; // 較柔和的橙色
+                } else if (isRetryingStatus) {
+                    // 重試中狀態 - 使用資訊色
+                    processingText.classList.remove('text-primary', 'text-warning');
+                    processingText.classList.add('text-info', 'fw-bold');
+                    processingText.style.color = ''; // 清除自定義顏色
+                    processingText.innerHTML = `
+                        <i class="bi bi-arrow-clockwise me-2"></i>${data.description}
+                        <br><small class="text-muted">正在重新嘗試 API 請求</small>
+                    `;
+                    
+                    progressBar.style.backgroundColor = '#0dcaf0'; // 資訊色
+                } else {
+                    // 正常狀態
+                    processingText.classList.remove('text-warning', 'text-info');
+                    processingText.classList.add('text-primary', 'fw-bold');
+                    processingText.style.color = ''; // 清除自定義顏色
+                    processingText.innerHTML = data.description + '<br><small class="text-muted">請耐心等待，處理時間取決於文件大小和複雜度</small>';
+                    
+                    // 恢復正常的進度條樣式
+                    progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                    progressBar.style.backgroundColor = ''; // 恢復預設色
+                }
             }
             
             console.log(`進度更新: ${data.step} - ${data.progress}% - ${data.description}`);
             
             // 如果處理完成，準備跳轉
             if (data.step === 'complete' && data.progress >= 100) {
+                // 恢復正常的進度條樣式
+                progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                progressBar.style.backgroundColor = '#198754'; // 成功色
+                
                 setTimeout(() => {
                     socket.off('progress_update');
                     // 跳轉將由表單回應處理

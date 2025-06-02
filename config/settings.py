@@ -35,6 +35,8 @@ class Config:
     GEMINI_TEMPERATURE = 0.0
     GEMINI_TOP_K = 1
     GEMINI_TOP_P = 0.0
+    GEMINI_MAX_RETRIES = 3  # API 限制錯誤的最大重試次數
+    GEMINI_ORIENTATION_MAX_RETRIES = 2  # 方向檢測的最大重試次數（通常較快，重試次數少）
     
     # 伺服器設定
     FLASK_HOST = os.environ.get('FLASK_HOST', '0.0.0.0')

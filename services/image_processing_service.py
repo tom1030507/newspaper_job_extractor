@@ -21,6 +21,8 @@ class ImageProcessingService:
         self.storage = image_storage
         self.ai_service = ai_service
         self.progress_tracker = progress_tracker
+        # 設置 AI 服務的進度追蹤器
+        self.ai_service.set_progress_tracker(progress_tracker)
     
     def process_image_data(self, image, process_id: str, image_name: str, 
                           progress_start: int = 10, progress_range: int = 50,
@@ -32,11 +34,20 @@ class ImageProcessingService:
         self.progress_tracker.update_progress(process_id, "process", progress_start, f"開始處理圖像: {image_name}")
         
         if auto_rotate:
-            # 首先檢查圖片需要旋轉的方向，但不立即旋轉
-            print(f"開始檢查圖片方向: {image_name}")
-            direction_check_progress = progress_start + int(progress_range * 0.2)  # 20%的範圍用於方向檢查
+            # 檢查圖片方向
+            direction_check_progress = progress_start + int(progress_range * 0.4)  # 40%完成方向檢測準備
             self.progress_tracker.update_progress(process_id, "process", direction_check_progress, f"檢查圖片方向: {image_name}")
-            rotation_direction = self.ai_service.check_image_orientation(image, api_key, parallel_process=True)
+            
+            # 提取原始的 process_id（移除 _page 或 _file 後綴）以便進度追蹤
+            original_process_id = process_id
+            if '_page' in process_id:
+                original_process_id = process_id.split('_page')[0]
+            elif '_file' in process_id:
+                original_process_id = process_id.split('_file')[0]
+            
+            rotation_direction = self.ai_service.check_image_orientation(
+                image, api_key, parallel_process=True, process_id=original_process_id
+            )
             print(f"檢測到需要旋轉方向: {rotation_direction}")
             direction_done_progress = progress_start + int(progress_range * 0.6)  # 60%完成方向檢測
             self.progress_tracker.update_progress(process_id, "process", direction_done_progress, f"方向檢測完成: {rotation_direction}")
@@ -258,9 +269,20 @@ class ImageProcessingService:
             }]
         
         try:
-            # 使用檔案路徑進行分析
+            # 使用檔案路徑進行分析，傳遞 process_id 以支援重試機制
             if 'file_path' in image_data and os.path.exists(image_data['file_path']):
-                description = self.ai_service.analyze_job_from_image(api_key, image_data['file_path'])
+                # 提取原始的 process_id（移除 _page 或 _file 後綴）以便進度追蹤
+                original_process_id = process_id
+                if '_page' in process_id:
+                    original_process_id = process_id.split('_page')[0]
+                elif '_file' in process_id:
+                    original_process_id = process_id.split('_file')[0]
+                    
+                description = self.ai_service.analyze_job_from_image(
+                    api_key, 
+                    image_data['file_path'], 
+                    original_process_id  # 傳遞 process_id 以支援進度更新和重試
+                )
             else:
                 return image_name, [{
                     "工作": "無法讀取圖片",
