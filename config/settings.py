@@ -24,8 +24,10 @@ class Config:
     MAX_FILES_PER_UPLOAD = 10
     
     # 清理設定
-    CLEANUP_MAX_AGE_HOURS = 4
-    CLEANUP_INTERVAL_HOURS = 4
+    CLEANUP_MAX_AGE_HOURS = 4  # 時間基礎清理：超過此時間的檔案會被清理
+    CLEANUP_INTERVAL_HOURS = 4  # 自動清理執行間隔（小時）
+    CLEANUP_MAX_FILE_COUNT = 3  # 數量基礎清理：最多保留的檔案數量
+    CLEANUP_ENABLE_COUNT_LIMIT = True  # 是否啟用檔案數量限制清理
     
     # Gemini API 設定
     GEMINI_MODEL_NAME = "gemini-2.0-flash-lite"

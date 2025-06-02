@@ -4,7 +4,7 @@
 import os
 import shutil
 from datetime import datetime, timedelta
-from typing import Set
+from typing import Set, List
 
 def allowed_file(filename: str, allowed_extensions: Set[str]) -> bool:
     """檢查檔案是否為允許的格式"""
@@ -51,6 +51,57 @@ def get_storage_info(results_folder: str) -> dict:
         'total_files': total_files,
         'total_size_mb': round(total_size / (1024 * 1024), 2)
     }
+
+def cleanup_by_count(results_folder: str, max_count: int = 3) -> List[str]:
+    """
+    限制 results 資料夾中的檔案數量，如果超過 max_count 就刪除最舊的檔案
+    
+    Args:
+        results_folder: 結果資料夾路徑
+        max_count: 最大保留檔案數量
+        
+    Returns:
+        被刪除的 process_id 列表
+    """
+    removed_process_ids = []
+    
+    if not os.path.exists(results_folder):
+        return removed_process_ids
+    
+    # 獲取所有子資料夾（每個代表一個 process_id）
+    process_dirs = []
+    for item in os.listdir(results_folder):
+        item_path = os.path.join(results_folder, item)
+        if os.path.isdir(item_path):
+            # 獲取資料夾的創建時間
+            ctime = os.path.getctime(item_path)
+            process_dirs.append((item, item_path, ctime))
+    
+    # 如果檔案數量不超過限制，不需要清理
+    if len(process_dirs) <= max_count:
+        print(f"Results 資料夾中有 {len(process_dirs)} 個檔案，未超過限制 {max_count}")
+        return removed_process_ids
+    
+    # 按創建時間排序（最舊的在前面）
+    process_dirs.sort(key=lambda x: x[2])
+    
+    # 計算需要刪除的檔案數量
+    files_to_remove = len(process_dirs) - max_count
+    
+    print(f"Results 資料夾中有 {len(process_dirs)} 個檔案，超過限制 {max_count}，將刪除最舊的 {files_to_remove} 個檔案")
+    
+    # 刪除最舊的檔案
+    for i in range(files_to_remove):
+        process_id, item_path, ctime = process_dirs[i]
+        try:
+            shutil.rmtree(item_path)
+            removed_process_ids.append(process_id)
+            created_time = datetime.fromtimestamp(ctime).strftime('%Y-%m-%d %H:%M:%S')
+            print(f"已刪除最舊的檔案: {process_id} (創建時間: {created_time})")
+        except Exception as e:
+            print(f"刪除檔案 {process_id} 時發生錯誤: {str(e)}")
+    
+    return removed_process_ids
 
 def cleanup_old_files(upload_folder: str, results_folder: str, max_age_hours: int = 4) -> None:
     """清理超過指定時間的檔案"""

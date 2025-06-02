@@ -23,7 +23,7 @@ from services import progress_tracker, ai_service, image_processing_service
 from routes import main_bp, upload_bp, results_bp
 
 # 導入工具函數
-from utils import cleanup_old_files, get_storage_info
+from utils import cleanup_old_files, cleanup_by_count, get_storage_info
 
 def create_app(config_name='default'):
     """應用程式工廠函數"""
@@ -124,6 +124,55 @@ def create_app(config_name='default'):
                 'status': 'error'
             }), 500
 
+    @app.route('/admin/cleanup/settings')
+    def admin_cleanup_settings():
+        """查看清理設定狀態"""
+        from flask import jsonify
+        
+        return jsonify({
+            'cleanup_settings': {
+                'max_age_hours': Config.CLEANUP_MAX_AGE_HOURS,
+                'interval_hours': Config.CLEANUP_INTERVAL_HOURS,
+                'max_file_count': Config.CLEANUP_MAX_FILE_COUNT,
+                'enable_count_limit': Config.CLEANUP_ENABLE_COUNT_LIMIT,
+            },
+            'current_status': {
+                'results_folder': Config.RESULTS_FOLDER,
+                'storage_info': get_storage_info(Config.RESULTS_FOLDER),
+                'memory_processes': len(image_storage._storage),
+            },
+            'status': 'success'
+        })
+
+    @app.route('/admin/cleanup/count', methods=['POST'])
+    def admin_cleanup_by_count():
+        """手動執行檔案數量限制清理"""
+        from flask import request, jsonify
+        
+        try:
+            max_count = request.json.get('max_count', Config.CLEANUP_MAX_FILE_COUNT) if request.json else Config.CLEANUP_MAX_FILE_COUNT
+            
+            # 執行檔案數量清理
+            removed_process_ids = cleanup_by_file_count(max_count)
+            
+            # 獲取清理後的存儲資訊
+            storage_info = get_storage_info(Config.RESULTS_FOLDER)
+            storage_info['memory_processes'] = len(image_storage._storage)
+            
+            return jsonify({
+                'message': f'已執行檔案數量限制清理，最多保留 {max_count} 個檔案',
+                'removed_count': len(removed_process_ids),
+                'removed_process_ids': removed_process_ids,
+                'storage_info': storage_info,
+                'enabled': Config.CLEANUP_ENABLE_COUNT_LIMIT,
+                'status': 'success'
+            })
+        except Exception as e:
+            return jsonify({
+                'error': f'檔案數量清理失敗: {str(e)}',
+                'status': 'error'
+            }), 500
+
     @app.route('/admin/cleanup/auto', methods=['POST'])
     def toggle_auto_cleanup():
         """切換自動清理功能"""
@@ -134,7 +183,7 @@ def create_app(config_name='default'):
             
             if enabled:
                 start_cleanup_scheduler()
-                message = f"自動清理已啟用，每{Config.CLEANUP_INTERVAL_HOURS}小時執行一次"
+                message = f"自動清理已啟用，每{Config.CLEANUP_INTERVAL_HOURS}小時執行"
             else:
                 schedule.clear()
                 message = "自動清理已停用"
@@ -381,11 +430,46 @@ def cleanup_memory_storage(process_id):
     progress_tracker.remove_progress(process_id)
     print(f"清理記憶體資料: {process_id}")
 
+def cleanup_by_file_count(max_count: int = None):
+    """
+    執行檔案數量限制清理，同時清理記憶體存儲
+    
+    Args:
+        max_count: 最大保留檔案數量，如果為 None 則使用配置中的預設值
+    """
+    # 檢查是否啟用檔案數量限制清理
+    if not Config.CLEANUP_ENABLE_COUNT_LIMIT:
+        print("檔案數量限制清理已停用")
+        return []
+    
+    # 使用配置中的預設值
+    if max_count is None:
+        max_count = Config.CLEANUP_MAX_FILE_COUNT
+    
+    print(f"執行檔案數量限制清理（最多保留 {max_count} 個檔案）...")
+    
+    # 執行檔案數量清理
+    removed_process_ids = cleanup_by_count(Config.RESULTS_FOLDER, max_count)
+    
+    # 清理對應的記憶體存儲
+    for process_id in removed_process_ids:
+        cleanup_memory_storage(process_id)
+        print(f"已清理檔案和記憶體資料: {process_id}")
+    
+    if removed_process_ids:
+        print(f"總共清理了 {len(removed_process_ids)} 個過期檔案")
+    
+    return removed_process_ids
+
 def start_cleanup_scheduler():
     """啟動定時清理任務"""
     def run_scheduled_cleanup():
         print("執行定時清理任務...")
+        # 先執行時間基礎的清理
         cleanup_old_files(Config.UPLOAD_FOLDER, Config.RESULTS_FOLDER, Config.CLEANUP_MAX_AGE_HOURS)
+        # 再執行數量限制清理（如果啟用）
+        if Config.CLEANUP_ENABLE_COUNT_LIMIT:
+            cleanup_by_file_count()
     
     # 設置每4小時執行一次清理
     schedule.every(Config.CLEANUP_INTERVAL_HOURS).hours.do(run_scheduled_cleanup)
@@ -398,7 +482,8 @@ def start_cleanup_scheduler():
     
     cleanup_thread = threading.Thread(target=schedule_runner, daemon=True)
     cleanup_thread.start()
-    print(f"定時清理任務已啟動，每{Config.CLEANUP_INTERVAL_HOURS}小時執行一次")
+    cleanup_status = "已啟用" if Config.CLEANUP_ENABLE_COUNT_LIMIT else "時間清理已啟用，數量限制已停用"
+    print(f"定時清理任務已啟動，每{Config.CLEANUP_INTERVAL_HOURS}小時執行一次（{cleanup_status}）")
 
 # 創建應用實例
 app, socketio = create_app()
@@ -409,6 +494,9 @@ if __name__ == '__main__':
     
     # 立即執行一次清理（清理啟動時的舊檔案）
     cleanup_old_files(Config.UPLOAD_FOLDER, Config.RESULTS_FOLDER, Config.CLEANUP_MAX_AGE_HOURS)
+    # 執行數量限制清理（如果啟用）
+    if Config.CLEANUP_ENABLE_COUNT_LIMIT:
+        cleanup_by_file_count()
     
     # 從配置讀取伺服器設定
     host = Config.FLASK_HOST
@@ -419,5 +507,7 @@ if __name__ == '__main__':
     print(f"📡 伺服器地址: http://{host}:{port}")
     print(f"🔧 除錯模式: {debug}")
     print(f"🧹 自動清理: 每{Config.CLEANUP_INTERVAL_HOURS}小時執行")
+    cleanup_status = f"最多保留 {Config.CLEANUP_MAX_FILE_COUNT} 個檔案" if Config.CLEANUP_ENABLE_COUNT_LIMIT else "已停用"
+    print(f"📁 檔案數量限制: {cleanup_status}")
     
     socketio.run(app, debug=debug, host=host, port=port) 

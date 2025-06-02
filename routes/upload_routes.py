@@ -111,6 +111,13 @@ def upload_file():
         # 處理完成
         progress_tracker.update_progress(process_id, "complete", 100, "所有檔案處理完成")
         
+        # 執行檔案數量限制清理
+        from app import cleanup_by_file_count
+        try:
+            cleanup_by_file_count()  # 使用配置檔中的預設值
+        except Exception as cleanup_error:
+            print(f"檔案清理時發生錯誤（不影響主流程）: {str(cleanup_error)}")
+        
         # 處理成功，顯示成功訊息
         if len(valid_files) > 1:
             flash(f'成功處理了 {len(valid_files)} 個檔案', 'success')
