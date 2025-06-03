@@ -212,17 +212,16 @@ def create_app(config_name='default'):
             data = request.get_json() if request.get_json() else {}
             apps_script_url = data.get('apps_script_url', '')
             
-            # 如果沒有提供 URL，使用默認的自動創建 Google Sheet 的 Apps Script
+            # 如果沒有從請求中提供 URL，則使用配置中的 URL
             if not apps_script_url:
-                # TODO: 請將下面的 URL 替換為您實際部署的 Google Apps Script URL
-                apps_script_url = 'YOUR_ACTUAL_GOOGLE_APPS_SCRIPT_URL_HERE'  # 請替換為實際部署的 URL
+                apps_script_url = Config.GOOGLE_APPS_SCRIPT_URL
                 
-                # 如果還沒有設置真實的 URL，返回錯誤
-                if apps_script_url == 'YOUR_ACTUAL_GOOGLE_APPS_SCRIPT_URL_HERE':
-                    return jsonify({
-                        'error': '請先設置 Google Apps Script URL',
-                        'message': '請參考 GOOGLE_APPS_SCRIPT_SETUP.md 文件來部署您的 Google Apps Script，然後更新程式中的 URL'
-                    }), 400
+            # 如果 URL 仍然是佔位符，返回錯誤
+            if apps_script_url == 'YOUR_ACTUAL_GOOGLE_APPS_SCRIPT_URL_HERE' or not apps_script_url:
+                return jsonify({
+                    'error': '請先在配置中設定 Google Apps Script URL 或在請求中提供',
+                    'message': '請參考 GOOGLE_APPS_SCRIPT_SETUP.md 文件來部署您的 Google Apps Script，然後更新程式中的 URL 或配置檔。'
+                }), 400
             
             # 收集職缺資料 - 使用與 results 和 download 相同的邏輯
             all_jobs = []

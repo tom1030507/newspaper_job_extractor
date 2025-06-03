@@ -60,8 +60,8 @@
    ```
 
 3. **訪問應用**
-   - 主頁面: http://localhost:5000
-   - 健康檢查: http://localhost:5000/health
+   - 主頁面: http://localhost:8080
+   - 健康檢查: http://localhost:8080/health
   
 詳細的 Docker 部署說明請參考 [README-Docker.md](docs/README-Docker.md)
 
@@ -164,7 +164,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 # 可選配置
 FLASK_ENV=production
 FLASK_HOST=0.0.0.0
-FLASK_PORT=5000
+FLASK_PORT=8080
 MAX_CONTENT_LENGTH=16777216
 ```
 

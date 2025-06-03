@@ -60,8 +60,8 @@ An intelligent newspaper job advertisement extraction system that automatically 
    ```
 
 3. **Access Application**
-   - Main page: http://localhost:5000
-   - Health check: http://localhost:5000/health
+   - Main page: http://localhost:8080
+   - Health check: http://localhost:8080/health
   
 For detailed Docker deployment instructions, please refer to [README-Docker.md](docs/README-Docker.md)
 
@@ -164,7 +164,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 # Optional configuration
 FLASK_ENV=production
 FLASK_HOST=0.0.0.0
-FLASK_PORT=5000
+FLASK_PORT=8080
 MAX_CONTENT_LENGTH=16777216
 ```
 

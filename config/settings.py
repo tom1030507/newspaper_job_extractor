@@ -24,8 +24,8 @@ class Config:
     MAX_FILES_PER_UPLOAD = 10
     
     # 清理設定
-    CLEANUP_MAX_AGE_HOURS = 4  # 時間基礎清理：超過此時間的檔案會被清理
-    CLEANUP_INTERVAL_HOURS = 4  # 自動清理執行間隔（小時）
+    CLEANUP_MAX_AGE_HOURS = 1  # 時間基礎清理：超過此時間的檔案會被清理
+    CLEANUP_INTERVAL_HOURS = 1  # 自動清理執行間隔（小時）
     CLEANUP_MAX_FILE_COUNT = 3  # 數量基礎清理：最多保留的檔案數量
     CLEANUP_ENABLE_COUNT_LIMIT = True  # 是否啟用檔案數量限制清理
     
@@ -40,8 +40,11 @@ class Config:
     
     # 伺服器設定
     FLASK_HOST = os.environ.get('FLASK_HOST', '0.0.0.0')
-    FLASK_PORT = int(os.environ.get('FLASK_PORT', 5000))
+    FLASK_PORT = int(os.environ.get('FLASK_PORT', 8080))
     FLASK_DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    # Google Apps Script URL
+    GOOGLE_APPS_SCRIPT_URL = os.environ.get('GOOGLE_APPS_SCRIPT_URL', 'YOUR_ACTUAL_GOOGLE_APPS_SCRIPT_URL_HERE')
     
     # CORS 設定
     CORS_ALLOWED_ORIGINS = "*"

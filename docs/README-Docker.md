@@ -24,8 +24,8 @@ docker-compose up -d
 ```
 
 ### 3. 訪問應用程式
-- 主頁面：http://localhost:5000
-- 健康檢查：http://localhost:5000/health
+- 主頁面：http://localhost:8080
+- 健康檢查：http://localhost:8080/health
 
 ## 基本指令
 
@@ -63,7 +63,7 @@ FLASK_ENV=production
 修改 `docker-compose.yml` 中的端口：
 ```yaml
 ports:
-  - "5001:5000"  # 改為其他端口
+  - "8081:8080"  # 改為其他端口
 ```
 
 ### 清理資源
