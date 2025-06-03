@@ -6,7 +6,7 @@
  * 2. 部署為網路應用程式
  * 3. 執行身分：我自己
  * 4. 有權存取的使用者：任何人
- * 5. 複製網路應用程式 URL 並更新 app.py 中的 apps_script_url
+ * 5. 複製網路應用程式 URL 並更新 .env 中的 apps_script_url
  */
 
 function doPost(e) {
@@ -88,6 +88,20 @@ function handleAddJobs(requestData) {
     
     console.log('準備創建 Google Sheet...');
     
+    // 定義目標資料夾名稱
+    const targetFolderName = 'newspaper_job';
+    let targetFolder;
+
+    // 檢查資料夾是否存在，若不存在則創建
+    const folders = DriveApp.getFoldersByName(targetFolderName);
+    if (folders.hasNext()) {
+      targetFolder = folders.next();
+      console.log(`找到現有資料夾: ${targetFolderName}, ID: ${targetFolder.getId()}`);
+    } else {
+      targetFolder = DriveApp.createFolder(targetFolderName);
+      console.log(`創建新資料夾: ${targetFolderName}, ID: ${targetFolder.getId()}`);
+    }
+
     // 創建新的 Google Sheet
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const sheetName = `報紙職缺提取_${timestamp}`;
@@ -96,6 +110,12 @@ function handleAddJobs(requestData) {
     const spreadsheet = SpreadsheetApp.create(sheetName);
     console.log('Google Sheet 創建成功，ID:', spreadsheet.getId());
     
+    // 將新建立的試算表移動到目標資料夾
+    const file = DriveApp.getFileById(spreadsheet.getId());
+    targetFolder.addFile(file);
+    DriveApp.getRootFolder().removeFile(file); // 從根目錄移除，避免重複
+    console.log(`已將試算表 ${sheetName} 移動到資料夾 ${targetFolderName}`);
+
     const sheet = spreadsheet.getActiveSheet();
     
     // 設置工作表標題
@@ -105,7 +125,7 @@ function handleAddJobs(requestData) {
     // 定義標題行
     const headers = [
       '編號', '工作', '行業', '時間', '薪資', '地點', 
-      '聯絡方式', '其他', '來源圖片', '頁碼', '工作編號', '提取時間'
+      '聯絡方式', '其他', '來源圖片', '提取時間'
     ];
     
     // 設置標題行
@@ -134,8 +154,6 @@ function handleAddJobs(requestData) {
         job['聯絡方式'] || '',
         job['其他'] || '',
         job['來源圖片'] || '',
-        job['頁碼'] || '',
-        job['工作編號'] || '',
         new Date().toLocaleString('zh-TW')  // 提取時間
       ];
       dataRows.push(row);
@@ -163,7 +181,7 @@ function handleAddJobs(requestData) {
       const allDataRange = sheet.getRange(1, 1, dataRows.length + 1, headers.length);
       allDataRange.setBorder(true, true, true, true, true, true);
       console.log('邊框設置完成');
-  }
+    }
     
     console.log('開始創建摘要工作表...');
     
@@ -177,7 +195,7 @@ function handleAddJobs(requestData) {
       ['資料來源', metadata ? metadata.source || '' : ''],
       ['', ''],
       ['行業分布', ''],
-  ];
+    ];
   
     // 統計行業分布
     const industryCount = {};
@@ -216,13 +234,13 @@ function handleAddJobs(requestData) {
     
     // 設置 Google Sheet 為公開檢視（可選）
     try {
-      DriveApp.getFileById(spreadsheetId).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      console.log('分享權限設置完成');
-  } catch (error) {
+      DriveApp.getFileById(spreadsheetId).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);
+      console.log('分享權限設置完成: 任何知道連結的人都可以編輯');
+    } catch (error) {
       console.log('無法設置檔案分享權限:', error);
-}
+    }
 
-  const response = {
+    const response = {
       'success': true,
       'message': `成功創建 Google Sheet 並添加 ${jobs.length} 筆職缺資料`,
       'spreadsheet_url': spreadsheetUrl,
@@ -230,13 +248,13 @@ function handleAddJobs(requestData) {
       'sheet_name': sheetName,
       'jobs_added': jobs.length,
       'timestamp': new Date().toISOString()
-  };
-  
+    };
+    
     console.log('準備返回回應:', response);
   
-  return ContentService
-    .createTextOutput(JSON.stringify(response))
-    .setMimeType(ContentService.MimeType.JSON);
+    return ContentService
+      .createTextOutput(JSON.stringify(response))
+      .setMimeType(ContentService.MimeType.JSON);
     
   } catch (error) {
     console.error('處理職缺資料時發生錯誤:', error);
@@ -266,9 +284,7 @@ function testCreateSheet() {
         '地點': '台北市',
         '聯絡方式': '02-1234-5678',
         '其他': '測試備註',
-        '來源圖片': 'test.jpg',
-        '頁碼': '1',
-        '工作編號': '1'
+        '來源圖片': 'test.jpg'
       }
     ],
     metadata: {

@@ -35,8 +35,6 @@ def test_google_apps_script(apps_script_url):
                 '聯絡方式': '02-1234-5678',
                 '其他': '需具備 Python 程式設計經驗',
                 '來源圖片': 'test_image.jpg',
-                '頁碼': '1',
-                '工作編號': '測試工作 1'
             },
             {
                 '工作': '測試職位 - 行政助理',
@@ -47,8 +45,6 @@ def test_google_apps_script(apps_script_url):
                 '聯絡方式': '02-5678-9012',
                 '其他': '需具備基本電腦操作能力',
                 '來源圖片': 'test_image.jpg',
-                '頁碼': '1',
-                '工作編號': '測試工作 2'
             }
         ],
         'metadata': {
@@ -111,10 +107,7 @@ def main():
     print("=" * 50)
     
     # TODO: 請將下面的 URL 替換為您的實際 Google Apps Script URL
-    APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby1CtTal9kevYOXcNXBowwa3gOrXRoV0WvbcyGmtvhLHJBk7fgZgD5Bdie4AxQY2qTe4A/exec"
-    
-    # 如果您想測試特定的 URL，可以直接在這裡設置
-    # APPS_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
+    APPS_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
     
     success = test_google_apps_script(APPS_SCRIPT_URL)
     

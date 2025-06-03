@@ -262,14 +262,7 @@ def create_app(config_name='default'):
                                 if is_valid_job(job):
                                     job_info = job.copy()
                                     job_info['來源圖片'] = filename
-                                    job_info['頁碼'] = page_num
                                     job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
-                                    if len([j for j in description if is_valid_job(j)]) > 1:
-                                        valid_jobs = [j for j in description if is_valid_job(j)]
-                                        job_index = valid_jobs.index(job) + 1
-                                        job_info['工作編號'] = f"工作 {job_index}"
-                                    else:
-                                        job_info['工作編號'] = ""
                                     all_jobs.append(job_info)
             elif multi_file_keys:
                 # 多檔案情況
@@ -314,14 +307,7 @@ def create_app(config_name='default'):
                                 if is_valid_job(job):
                                     job_info = job.copy()
                                     job_info['來源圖片'] = filename
-                                    job_info['頁碼'] = page_num
                                     job_info['圖片編號'] = f"{file_display}_{filename.split('.')[0]}"
-                                    if len([j for j in description if is_valid_job(j)]) > 1:
-                                        valid_jobs = [j for j in description if is_valid_job(j)]
-                                        job_index = valid_jobs.index(job) + 1
-                                        job_info['工作編號'] = f"工作 {job_index}"
-                                    else:
-                                        job_info['工作編號'] = ""
                                     all_jobs.append(job_info)
             elif process_id in image_storage._storage:
                 # 單一圖像情況
@@ -350,14 +336,7 @@ def create_app(config_name='default'):
                             if is_valid_job(job):
                                 job_info = job.copy()
                                 job_info['來源圖片'] = filename
-                                job_info['頁碼'] = '1'
                                 job_info['圖片編號'] = filename.split('.')[0]
-                                if len([j for j in description if is_valid_job(j)]) > 1:
-                                    valid_jobs = [j for j in description if is_valid_job(j)]
-                                    job_index = valid_jobs.index(job) + 1
-                                    job_info['工作編號'] = f"工作 {job_index}"
-                                else:
-                                    job_info['工作編號'] = ""
                                 all_jobs.append(job_info)
             else:
                 return jsonify({'error': '處理結果不存在'}), 404
