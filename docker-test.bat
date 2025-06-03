@@ -45,11 +45,11 @@ docker-compose ps
 echo.
 
 echo 📋 步驟 7: 健康檢查
-powershell -Command "try { $response = Invoke-WebRequest -Uri 'http://localhost:5000/health' -TimeoutSec 10; if ($response.StatusCode -eq 200) { Write-Host '✅ 健康檢查通過' } else { Write-Host '❌ 健康檢查失敗' } } catch { Write-Host '❌ 無法連接到應用程式' }"
+powershell -Command "try { $response = Invoke-WebRequest -Uri 'http://localhost:8080/health' -TimeoutSec 10; if ($response.StatusCode -eq 200) { Write-Host '✅ 健康檢查通過' } else { Write-Host '❌ 健康檢查失敗' } } catch { Write-Host '❌ 無法連接到應用程式' }"
 
 echo.
 echo 📋 步驟 8: API 狀態檢查
-powershell -Command "try { $response = Invoke-WebRequest -Uri 'http://localhost:5000/api/status' -TimeoutSec 10; if ($response.StatusCode -eq 200) { Write-Host '✅ API 狀態正常' } else { Write-Host '❌ API 狀態異常' } } catch { Write-Host '❌ 無法連接到 API' }"
+powershell -Command "try { $response = Invoke-WebRequest -Uri 'http://localhost:8080/api/status' -TimeoutSec 10; if ($response.StatusCode -eq 200) { Write-Host '✅ API 狀態正常' } else { Write-Host '❌ API 狀態異常' } } catch { Write-Host '❌ 無法連接到 API' }"
 
 echo.
 echo 📋 步驟 9: 檢查日誌
@@ -76,10 +76,10 @@ echo 🎉 測試完成！
 echo.
 echo 📊 測試結果摘要:
 echo ===============================
-echo 🌐 應用程式網址: http://localhost:5000
+echo 🌐 應用程式網址: http://localhost:8080
 echo 📁 資料目錄: .\data\
-echo 🔍 健康檢查: http://localhost:5000/health
-echo 📊 API 狀態: http://localhost:5000/api/status
+echo 🔍 健康檢查: http://localhost:8080/health
+echo 📊 API 狀態: http://localhost:8080/api/status
 echo.
 echo 🛠️ 常用指令:
 echo   查看日誌: docker-compose logs -f
@@ -90,7 +90,7 @@ echo.
 REM 詢問是否要打開瀏覽器
 set /p choice="是否要打開瀏覽器測試應用程式？(y/n): "
 if /i "%choice%"=="y" (
-    start http://localhost:5000
+    start http://localhost:8080
     echo 🌐 瀏覽器已打開，請手動測試應用程式功能
 )
 
