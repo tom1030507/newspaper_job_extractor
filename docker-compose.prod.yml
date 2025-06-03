@@ -1,11 +1,11 @@
 services:
-  newspaper-extractor:
+  newspaper-extractor:    
     build: 
       context: .
       dockerfile: Dockerfile
     container_name: newspaper-job-extractor-prod
     ports:
-      - "5000:5000"
+      - "8080:8080"
     volumes:
       # 持久化存儲（只讀掛載環境變數）
       - ./data/uploads:/app/uploads
@@ -14,10 +14,9 @@ services:
     environment:
       - FLASK_ENV=production
       - FLASK_DEBUG=False
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-    restart: unless-stopped
+      - GEMINI_API_KEY=${GEMINI_API_KEY}    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/health').raise_for_status()"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/health').raise_for_status()"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -67,7 +67,7 @@ docker-compose logs --tail=20 newspaper-extractor
 
 echo.
 echo ✅ 啟動完成！
-echo 🌐 應用程式網址: http://localhost:5000
+echo 🌐 應用程式網址: http://localhost:8080
 echo.
 echo 常用指令:
 echo   查看日誌: docker-compose logs -f
