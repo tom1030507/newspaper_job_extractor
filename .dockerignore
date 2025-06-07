@@ -53,6 +53,9 @@ README.md
 docs/
 *.md
 
+# 忽略示例檔案
+newspaper/
+
 # 暫存檔案
 *.tmp
 *.temp
