@@ -50,7 +50,7 @@ class Config:
     CORS_ALLOWED_ORIGINS = "*"
     
     # 並行處理設定
-    MAX_WORKERS = 4
+    MAX_WORKERS = 8
     REQUEST_TIMEOUT = 30
     
     @staticmethod

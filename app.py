@@ -9,6 +9,9 @@ import schedule
 from datetime import datetime
 from flask import Flask
 from flask_socketio import SocketIO, emit
+import psutil
+import sys
+import gc
 
 # 導入配置
 from config import Config, config
@@ -127,6 +130,30 @@ def create_app(config_name='default'):
         
         storage_info = get_storage_info(Config.RESULTS_FOLDER)
         storage_info['memory_processes'] = len(image_storage._storage)
+        
+        # 添加記憶體使用監控
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        storage_info['memory_usage'] = {
+            'rss_mb': round(memory_info.rss / (1024 * 1024), 2),  # 實際記憶體使用
+            'vms_mb': round(memory_info.vms / (1024 * 1024), 2),  # 虛擬記憶體使用
+            'percent': round(process.memory_percent(), 2),  # 記憶體使用百分比
+            'available_mb': round(psutil.virtual_memory().available / (1024 * 1024), 2)
+        }
+        
+        # 計算記憶體中儲存的圖片數量和估算大小
+        total_images = 0
+        estimated_memory_mb = 0
+        for process_key, images in image_storage._storage.items():
+            for filename, image_data in images.items():
+                total_images += 1
+                # 估算記憶體使用（主要是檔案路徑和元數據）
+                estimated_memory_mb += image_data.get('size', 0) / (1024 * 1024) * 0.1  # 估算元數據佔用
+        
+        storage_info['image_storage'] = {
+            'total_images': total_images,
+            'estimated_memory_mb': round(estimated_memory_mb, 2)
+        }
         
         # 獲取最近的處理記錄
         recent_processes = []
@@ -410,6 +437,59 @@ def create_app(config_name='default'):
             return jsonify({'error': f'連接 Google Apps Script 失敗: {str(e)}'}), 500
         except Exception as e:
             return jsonify({'error': f'發送資料時發生錯誤: {str(e)}'}), 500
+
+    @app.route('/admin/memory/clear', methods=['POST'])
+    def admin_clear_memory():
+        """手動清理記憶體中的圖片資料"""
+        from flask import request, jsonify
+        
+        try:
+            # 獲取清理前的狀態
+            before_count = len(image_storage._storage)
+            before_images = sum(len(images) for images in image_storage._storage.values())
+            
+            # 可選擇性清理特定 process_id
+            process_id = request.json.get('process_id') if request.json else None
+            
+            if process_id:
+                # 清理特定處理結果
+                image_storage.remove_process(process_id)
+                progress_storage.remove_progress(process_id)
+                message = f"已清理處理結果: {process_id}"
+            else:
+                # 清理所有記憶體資料
+                image_storage.clear()
+                progress_storage.clear()
+                message = "已清理所有記憶體資料"
+            
+            # 強制垃圾回收
+            gc.collect()
+            
+            # 獲取清理後的狀態
+            after_count = len(image_storage._storage)
+            after_images = sum(len(images) for images in image_storage._storage.values())
+            
+            return jsonify({
+                'message': message,
+                'before': {
+                    'processes': before_count,
+                    'images': before_images
+                },
+                'after': {
+                    'processes': after_count,
+                    'images': after_images
+                },
+                'cleared': {
+                    'processes': before_count - after_count,
+                    'images': before_images - after_images
+                },
+                'status': 'success'
+            })
+        except Exception as e:
+            return jsonify({
+                'error': f'記憶體清理失敗: {str(e)}',
+                'status': 'error'
+            }), 500
 
     return app, socketio
 

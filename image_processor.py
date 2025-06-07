@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import os
 import fitz
+import gc
 
 # 檢查一個邊界框是否被另一個邊界框包含
 def is_contained_bbox(bbox1, bbox2, tolerance=10):
@@ -371,6 +372,13 @@ def process_image(image, output_folder, image_name):
         print("沒有最終過濾的區塊資訊，無法創建 final_combined 圖像。")
 
     print("\n所有處理步驟完成！")
+    
+    # 強制垃圾回收以釋放處理過程中的記憶體
+    del gray, blurred, thresh, edges, mask
+    if 'combined_final' in locals():
+        del combined_final
+    gc.collect()
+    print("圖像處理完成，已執行記憶體清理")
 
 # 處理 PDF 或圖像輸入的主函數
 def main(input_path, output_folder_base, dpi=300):

@@ -6,6 +6,7 @@ import os
 import io
 import csv
 import zipfile
+import base64
 from datetime import datetime
 from flask import Blueprint, render_template, send_file, request, jsonify
 from config.settings import Config
@@ -13,6 +14,17 @@ from models.storage import image_storage
 from utils.file_utils import is_valid_job, get_page_sort_key
 
 results_bp = Blueprint('results', __name__)
+
+def generate_base64_from_file(file_path):
+    """從檔案路徑動態生成 base64 編碼"""
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'rb') as f:
+                image_data = f.read()
+                return base64.b64encode(image_data).decode('utf-8')
+    except Exception as e:
+        print(f"生成 base64 失敗: {e}")
+    return None
 
 @results_bp.route('/results/<process_id>')
 def show_results(process_id):
@@ -41,12 +53,15 @@ def show_results(process_id):
             for filename, image_data in image_storage._storage[page_key].items():
                 # 檢查是否為偵錯圖像
                 if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
-                    debug_files.append({
-                        'filename': filename,
-                        'page': page_num,
-                        'base64': image_data['base64'],
-                        'format': image_data['format']
-                    })
+                    # 動態生成 base64
+                    base64_data = generate_base64_from_file(image_data.get('file_path', ''))
+                    if base64_data:
+                        debug_files.append({
+                            'filename': filename,
+                            'page': page_num,
+                            'base64': base64_data,
+                            'format': image_data['format']
+                        })
                 else:
                     # 收集需要處理的圖片
                     batch_requests.append((page_key, filename, page_num, image_data))
@@ -72,12 +87,15 @@ def show_results(process_id):
             for filename, image_data in image_storage._storage[file_key].items():
                 # 檢查是否為偵錯圖像
                 if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
-                    debug_files.append({
-                        'filename': filename,
-                        'page': file_display,
-                        'base64': image_data['base64'],
-                        'format': image_data['format']
-                    })
+                    # 動態生成 base64
+                    base64_data = generate_base64_from_file(image_data.get('file_path', ''))
+                    if base64_data:
+                        debug_files.append({
+                            'filename': filename,
+                            'page': file_display,
+                            'base64': base64_data,
+                            'format': image_data['format']
+                        })
                 else:
                     # 收集需要處理的圖片
                     batch_requests.append((file_key, filename, file_display, image_data))
@@ -85,12 +103,15 @@ def show_results(process_id):
         # 單一圖像處理
         for filename, image_data in image_storage._storage[process_id].items():
             if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
-                debug_files.append({
-                    'filename': filename,
-                    'page': '1',
-                    'base64': image_data['base64'],
-                    'format': image_data['format']
-                })
+                # 動態生成 base64
+                base64_data = generate_base64_from_file(image_data.get('file_path', ''))
+                if base64_data:
+                    debug_files.append({
+                        'filename': filename,
+                        'page': '1',
+                        'base64': base64_data,
+                        'format': image_data['format']
+                    })
             else:
                 # 收集需要處理的圖片
                 batch_requests.append((process_id, filename, '1', image_data))
@@ -123,13 +144,16 @@ def show_results(process_id):
             has_valid_jobs = any(is_valid_job(job) for job in description)
             
             if has_valid_jobs:
-                image_files.append({
-                    'filename': filename,
-                    'page': page_num,
-                    'base64': image_data['base64'],
-                    'format': image_data['format'],
-                    'description': description
-                })
+                # 動態生成 base64
+                base64_data = generate_base64_from_file(image_data.get('file_path', ''))
+                if base64_data:
+                    image_files.append({
+                        'filename': filename,
+                        'page': page_num,
+                        'base64': base64_data,
+                        'format': image_data['format'],
+                        'description': description
+                    })
                 
                 # 將工作資訊加入統一列表
                 for i, job in enumerate(description):

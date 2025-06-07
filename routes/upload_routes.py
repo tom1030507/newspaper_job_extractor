@@ -8,6 +8,7 @@ import uuid
 import shutil
 import fitz  # PyMuPDF
 import numpy as np
+import gc
 from werkzeug.utils import secure_filename
 from flask import Blueprint, request, flash, redirect, url_for, session
 from config.settings import Config
@@ -118,6 +119,10 @@ def upload_file():
         # 在圖像處理完成後，立即執行 AI 分析
         _perform_batch_ai_analysis(process_id)
         
+        # 強制垃圾回收以釋放處理過程中的記憶體
+        gc.collect()
+        print(f"檔案處理完成，已執行記憶體清理")
+        
         # 處理完成
         progress_tracker.update_progress(process_id, "complete", 100, "所有檔案處理完成")
         
@@ -206,8 +211,13 @@ def _process_pdf_file(file_path: str, original_filename: str, file_counter: int,
                 page_progress_start, page_progress_range,
                 api_key, auto_rotate, Config.RESULTS_FOLDER
             )
+            
+            # 立即釋放頁面圖像記憶體
+            del image, img_array, pix
     
     pdf_document.close()
+    # 強制垃圾回收以釋放 PDF 處理記憶體
+    gc.collect()
 
 def _process_single_image_file(file_path: str, original_filename: str, file_counter: int, total_files: int, process_id: str):
     """處理單一圖像檔案"""
@@ -237,6 +247,10 @@ def _process_single_image_file(file_path: str, original_filename: str, file_coun
             file_process_start, file_process_range,
             api_key, auto_rotate, Config.RESULTS_FOLDER
         )
+        
+        # 立即釋放圖像記憶體
+        del image
+        gc.collect()
 
 def _perform_batch_ai_analysis(process_id: str):
     """執行批量 AI 分析"""

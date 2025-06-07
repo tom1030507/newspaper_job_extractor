@@ -9,6 +9,7 @@ import base64
 import tempfile
 import shutil
 import concurrent.futures
+import gc
 from functools import partial
 from typing import List, Dict, Any, Optional
 from models.storage import image_storage
@@ -111,20 +112,20 @@ class ImageProcessingService:
                         result_file_path = os.path.join(process_result_dir, filename)
                         cv2.imwrite(result_file_path, rotated_image)
                         
-                        # 生成base64編碼（用於網頁顯示）
-                        _, buffer = cv2.imencode('.jpg', rotated_image)
-                        image_data = buffer.tobytes()
-                        base64_data = base64.b64encode(image_data).decode('utf-8')
+                        # 獲取檔案大小（不再生成 base64）
+                        file_size = os.path.getsize(result_file_path)
                         
-                        # 儲存檔案路徑和元數據（不存儲binary資料）
+                        # 只儲存檔案路徑和元數據（移除 base64 以節省記憶體）
                         self.storage.store_image(process_id, filename, {
                             'file_path': result_file_path,
-                            'base64': base64_data,  # 暫時保留base64用於網頁顯示
                             'format': 'jpg',
-                            'size': len(image_data)
+                            'size': file_size
                         })
                         processed_files.append(filename)
                         processed_count += 1
+                        
+                        # 立即釋放圖像記憶體
+                        del processed_image, rotated_image
                         
                         # 更新進度
                         file_process_progress = file_process_start_progress + int((processed_count / total_files) * (progress_range * 0.15))
@@ -140,6 +141,11 @@ class ImageProcessingService:
             else:
                 print("圖片方向正確，無需旋轉")
                 self.progress_tracker.update_progress(process_id, "process", final_progress, "圖片處理完成")
+            
+            # 強制垃圾回收以釋放記憶體
+            del image  # 明確刪除原始圖像
+            gc.collect()
+            print(f"圖像處理完成，已執行記憶體清理")
             
             return processed_files
             
@@ -252,6 +258,10 @@ class ImageProcessingService:
         
         # AI 分析完成
         self.progress_tracker.update_progress(process_id, "analyze", 95, "AI 分析完成")
+        
+        # 強制垃圾回收以釋放 AI 分析過程中的記憶體
+        gc.collect()
+        print(f"AI 分析完成，已執行記憶體清理")
         
         return results
     
