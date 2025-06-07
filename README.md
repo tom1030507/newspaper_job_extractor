@@ -1,56 +1,110 @@
-# 報紙工作廣告區塊提取系統
+# 📰 報紙工作廣告區塊提取系統 (Newspaper Job Extractor)
 
-<p>
-  <img src="https://img.shields.io/badge/Docker-Ready-blue?logo=docker" alt="Docker Ready" />
-  <img src="https://img.shields.io/badge/Python-3.11+-green?logo=python" alt="Python 3.11+" />
-  <img src="https://img.shields.io/badge/AI-Gemini%202.0-orange?logo=google" alt="AI Gemini 2.0" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License MIT" />
+<p align="center">
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Ready" />
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+" />
+  <img src="https://img.shields.io/badge/AI-Gemini%202.0-FF6F00?style=for-the-badge&logo=google&logoColor=white" alt="AI Gemini 2.0" />
+  <img src="https://img.shields.io/badge/Flask-Web%20Framework-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License MIT" />
 </p>
 
-## 🎯 項目簡介
+<p align="center">
+  <strong>🚀 智能化的報紙工作廣告提取與分析系統</strong><br>
+  使用 AI 技術自動從掃描報紙中提取工作廣告區塊，並進行結構化資料分析
+</p>
 
-智能化的報紙工作廣告提取系統，能夠自動從掃描的報紙圖像中提取工作廣告區塊，並使用AI技術分析其中的職缺資訊。系統已完全Docker化，支援一鍵部署，適合24/7生產環境運行。
+<p align="center">
+  <a href="https://newspaper-job-extractor-574680962945.asia-east1.run.app" target="_blank">
+    <img src="https://img.shields.io/badge/🌐_線上體驗-立即使用-4CAF50?style=for-the-badge" alt="線上體驗" />
+  </a>
+</p>
 
-## ✨ 核心功能
+---
 
-### 🔧 圖像處理
-- **多格式支持**: JPG、PNG、PDF多頁文件
-- **智能區塊檢測**: 使用OpenCV進行精確的工作廣告區塊分割
-- **方向自動校正**: AI檢測圖片方向並自動旋轉
-- **高效處理**: 記憶體優化，大文件處理時僅使用5MB記憶體
+## 🎯 專案概述
 
-### 🤖 AI分析
-- **智能識別**: 使用Google Gemini 2.0模型分析工作內容
-- **結構化資料**: 自動提取職位、薪資、地點、聯絡方式等資訊
-- **行業分類**: 自動歸類到19個標準行業類別
-- **並行處理**: 支援多線程AI分析，提升處理速度
+這是一個採用現代 Web 技術構建的智能報紙工作廣告提取系統，整合了 **OpenCV 圖像處理**、**Google Gemini AI** 和 **Flask Web 框架**。系統能夠自動從掃描的報紙圖像中識別並提取工作廣告區塊，並使用 AI 技術將其轉換為結構化資料。
 
-### 🌐 Web介面
-- **即時進度**: 詳細的處理進度顯示（上傳→處理→AI分析）
-- **結果預覽**: 網格佈局展示所有提取的區塊
-- **多格式下載**: CSV、SQL、圖片、描述文件一鍵下載
-- **Google Sheets整合**: 一鍵創建並發送資料到試算表
+### 🌟 核心特色
 
-### 🐳 Docker部署
-- **一鍵啟動**: 完整的容器化解決方案
-- **生產就緒**: 包含健康檢查、自動重啟、日誌管理
-- **安全配置**: 非root用戶、資源限制、安全選項
-- **自動清理**: 4小時自動清理機制，支援長期運行
+- 🔍 **智能區塊檢測**: 使用進階 OpenCV 算法精確識別工作廣告區塊
+- 🤖 **AI 驅動分析**: 整合 Google Gemini 2.0 進行內容理解與結構化
+- 🌐 **現代 Web 界面**: 響應式設計，支援即時進度追踪
+- 🐳 **容器化部署**: 完整的 Docker 解決方案，支援生產環境
+- 📊 **多格式輸出**: CSV、SQL、圖片等多種格式匯出
+- ☁️ **雲端整合**: 一鍵同步至 Google Sheets
+
+### 🏗️ 系統架構
+
+```mermaid
+graph TD
+    A["👤 用戶"] --> B["🌐 Web 界面<br/>(Flask)"]
+    B --> C["📁 文件上傳<br/>(PDF/JPG/PNG)"]
+    C --> D["🔄 圖像預處理<br/>(OpenCV)"]
+    D --> E["🔍 區塊檢測<br/>(輪廓分析)"]
+    E --> F["🤖 AI 分析<br/>(Google Gemini)"]
+    F --> G["📊 結構化資料<br/>(工作資訊)"]
+    G --> H["💾 多格式輸出"]
+    H --> I["📄 CSV"]
+    H --> J["🗄️ SQL"]
+    H --> K["🖼️ 圖片包"]
+    H --> L["☁️ Google Sheets"]
+    
+    M["🐳 Docker 容器"] -.-> B
+    N["🔑 Gemini API"] -.-> F
+    O["📂 本地存儲"] -.-> G
+    
+    style A fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    style B fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    style C fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+    style D fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+    style E fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+    style F fill:#fff8e1,stroke:#f9a825,stroke-width:2px,color:#000
+    style G fill:#e8f5e8,stroke:#388e3c,stroke-width:2px,color:#000
+    style H fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#000
+    style I fill:#f1f8e9,stroke:#689f38,stroke-width:2px,color:#000
+    style J fill:#f1f8e9,stroke:#689f38,stroke-width:2px,color:#000
+    style K fill:#f1f8e9,stroke:#689f38,stroke-width:2px,color:#000
+    style L fill:#f1f8e9,stroke:#689f38,stroke-width:2px,color:#000
+    style M fill:#e0f2f1,stroke:#00796b,stroke-width:2px,color:#000
+    style N fill:#fff3e0,stroke:#ff8f00,stroke-width:2px,color:#000
+    style O fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px,color:#000
+```
+
+<div align="center">
+  <em>🔄 數據流向：用戶上傳 → 圖像處理 → AI分析 → 結構化輸出</em>
+</div>
+
+---
 
 ## 🚀 快速開始
 
-### Docker 部署（推薦）
+### 🌐 線上版本
+
+**立即體驗，無需安裝**：
+- 🔗 **線上網址**: [https://newspaper-job-extractor-574680962945.asia-east1.run.app](https://newspaper-job-extractor-574680962945.asia-east1.run.app)
+- ⚡ **即開即用**: 無需下載或配置，直接在瀏覽器中使用
+
+### 📋 本地部署需求
+
+- **Docker**: 20.10+ 與 Docker Compose 1.29+
+- **記憶體**: 最少 2GB，推薦 4GB
+- **存儲**: 最少 5GB 可用空間
+- **網絡**: Internet 連接（AI 功能需要）
+- **API**: Google Gemini API 密鑰
+
+### 🐳 Docker 部署（推薦）
 
 1. **環境檢查**
    ```bash
-   # Windows
+   # Windows 用戶
    .\docker-check.bat
    
-   # Linux/macOS
+   # Linux/macOS 用戶
    docker --version && docker-compose --version
    ```
 
-2. **一鍵啟動**
+2. **一鍵部署**
    ```bash
    # Windows
    .\docker-start.bat
@@ -59,31 +113,43 @@
    chmod +x docker-start.sh && ./docker-start.sh
    ```
 
-3. **訪問應用**
-   - 主頁面: http://localhost:8080
-   - 健康檢查: http://localhost:8080/health
-  
-詳細的 Docker 部署說明請參考 [README-Docker.md](docs/README-Docker.md)
+3. **驗證部署**
+   - 🌐 主應用: http://localhost:8080
+   - 🏥 健康檢查: http://localhost:8080/health
 
-### 本地開發環境
+### 💻 本地開發環境
 
 ```bash
-# 1. 安裝依賴
+# 1. 克隆專案
+git clone <repository-url>
+cd newspaper_job_extractor
+
+# 2. 安裝 Python 依賴
 pip install -r requirements.txt
 
-# 2. 設置環境變數
-cp env.example .env
-# 編輯 .env 檔案，添加您的 Gemini API 密鑰
+# 3. 環境配置
+cp .env.example .env
+# 編輯 .env 檔案，添加 Gemini API 密鑰
 
-# 3. 啟動應用
+# 4. 啟動開發服務器
 python app.py
 ```
 
+### 🔑 API 密鑰設置
+
+1. 前往 [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. 創建新的 API 密鑰
+3. 在系統首頁輸入 API 密鑰（會話期間有效）
+4. 或在 `.env` 檔案中設置 `GEMINI_API_KEY`
+
+---
+
 ## 🖼️ 處理效果展示
 
-### 原始報紙
+### 原始報紙 → 區塊提取
 <div align="center">
   <img src="newspaper/newspaper1.jpg" alt="原始報紙" width="400" />
+  <br><em>原始掃描報紙</em>
 </div>
 
 ### 提取的工作廣告區塊
@@ -92,173 +158,95 @@ python app.py
   <img src="newspaper/newspaper1.jpg_blocks/929_971_1615_1527.jpg" alt="工作區塊2" width="200" />
   <img src="newspaper/newspaper1.jpg_blocks/1618_2084_2284_2360.jpg" alt="工作區塊3" width="200" />
 </div>
+<div align="center"><em>自動提取的個別工作廣告</em></div>
 
-## 📊 AI分析結果
+### 處理步驟可視化
+| 原始圖像 | 邊緣檢測 | 輪廓過濾 | 重建結果 |
+|---------|---------|---------|---------|
+| ![原始](newspaper/newspaper1.jpg_blocks/newspaper1_original.jpg) | ![邊緣](newspaper/newspaper1.jpg_blocks/newspaper1_mask_unprocessed.jpg) | ![輪廓](newspaper/newspaper1.jpg_blocks/newspaper1_mask_processed.jpg) | ![結果](newspaper/newspaper1.jpg_blocks/newspaper1_final_combined.jpg) |
 
-系統自動提取以下資訊：
-- **工作職位**: 職位名稱和職業類型
-- **行業分類**: 19個標準行業類別自動歸類
-- **工作條件**: 工作時間、薪資待遇
-- **地理資訊**: 工作地點、服務區域
-- **聯絡資訊**: 電話、地址、其他聯絡方式
-- **額外資訊**: 工作要求、福利、備註
+---
 
-## 📥 下載與整合
+## 📖 使用指南
 
-### 下載格式
-- **CSV表格**: Excel可直接開啟的結構化資料
-- **SQL資料庫**: 完整的建表和插入語句
-- **圖片檔案**: 所有提取的工作區塊圖像
-- **AI描述**: 詳細的文字分析結果
+### 1️⃣ 檔案上傳
 
-### 🔗 Google Sheets 自動整合
+**支援格式**:
+- 📄 **PDF**: 多頁文件自動分頁處理
+- 🖼️ **圖片**: JPG, PNG 格式
+- 📁 **批量**: 最多 10 個檔案同時處理
 
-#### 快速使用
-1. 處理圖片完成後，在結果頁面點擊「創建 Google Sheets」
-2. 系統自動創建新的試算表並匯入所有職缺資料
-3. 提供直接連結，一鍵開啟 Google Sheets
+**處理選項**:
+- ✅ **自動校正方向**: AI 檢測並旋轉到正確方向
+- ⚡ **並行處理**: 多線程加速 AI 分析
 
-#### 試算表內容
-- **職缺資料工作表**: 包含工作、行業、薪資、地點等完整資訊
-- **處理摘要工作表**: 顯示處理統計和行業分布
-- **自動格式化**: 標題行樣式、顏色和邊框
-- **權限設定**: 自動設為「有連結的人都可檢視」
+### 2️⃣ 處理進度
 
-#### 自訂 Google Apps Script（可選）
+**進度階段**:
+1. **上傳階段** (0-10%): 檔案接收與驗證
+2. **處理階段** (10-60%): 圖像分析與區塊提取
+3. **AI分析階段** (60-95%): 內容識別與結構化
+4. **完成階段** (95-100%): 結果整理與儲存
 
-如果您想使用自己的 Google Apps Script：
+### 3️⃣ 結果展示
 
-1. **創建 Apps Script 專案**
-   - 前往 [Google Apps Script](https://script.google.com/)
-   - 創建新專案，複製 `google_apps_script.js` 內容
+**檢視功能**:
+- 🔍 **圖片預覽**: 點擊放大檢視原圖
+- 📝 **AI 分析**: 查看結構化提取資料
+- 📊 **統計資訊**: 處理摘要與行業分布
 
-2. **部署為網路應用程式**
-   - 選擇「部署」→「新增部署」→「網路應用程式」
-   - 執行身分：我，存取權限：任何人
-   - 複製網路應用程式 URL
+---
 
-3. **在系統中使用**
-   - 在結果頁面展開「自訂 Google Apps Script URL」選項
-   - 輸入您的 URL 並創建
+## 📊 AI 分析結果
 
-#### 資料格式
-| 欄位 | 說明 | 範例 |
+### 📋 資料結構
+
+系統自動提取以下結構化資訊：
+
+| 欄位 | 描述 | 範例 |
 |------|------|------|
-| 工作 | 職位名稱 | 軟體工程師 |
-| 行業 | 行業分類 | 資訊科技業 |
-| 時間 | 工作時間 | 週一至週五 9:00-18:00 |
-| 薪資 | 薪資待遇 | 月薪 50,000-70,000 元 |
-| 地點 | 工作地點 | 台北市信義區 |
-| 聯絡方式 | 聯絡資訊 | 02-1234-5678 |
-| 其他 | 其他資訊 | 需具備 Python 經驗 |
-| 來源圖片 | 來源檔名 | job_block_1.jpg |
-| 頁碼 | PDF 頁碼 | 1 |
+| **工作** | 職位名稱與職業類型 | 軟體工程師、行政助理 |
+| **行業** | 19個標準行業分類 | 資訊科技業、金融業 |
+| **時間** | 工作時間與班別 | 週一至週五 9:00-18:00 |
+| **薪資** | 薪資待遇與福利 | 月薪 35,000-50,000 元 |
+| **地點** | 工作地點與交通 | 台北市信義區、近捷運站 |
+| **聯絡方式** | 電話、地址、Email | 02-1234-5678 |
+| **其他** | 工作要求與備註 | 需具備英文能力 |
 
-## 🔧 配置選項
+---
 
-### 環境變數
-```bash
-# 必要配置
-GEMINI_API_KEY=your_gemini_api_key_here
+## 📥 匯出與整合
 
-# 可選配置
-FLASK_ENV=production
-FLASK_HOST=0.0.0.0
-FLASK_PORT=8080
-MAX_CONTENT_LENGTH=16777216
-```
+### 📄 下載格式
 
-### 處理參數
-- **自動校正方向**: 啟用/停用圖片方向檢測
-- **並行處理**: 啟用/停用多線程AI分析
-- **除錯模式**: 保存處理步驟的中間圖像
+| 格式 | 描述 | 用途 |
+|------|------|------|
+| **CSV** | Excel 可開啟的表格檔 | 資料分析、製表 |
+| **SQL** | 完整的資料庫語句 | 資料庫匯入 |
+| **圖片** | 所有提取的區塊圖像 | 視覺化檢視 |
+| **描述** | AI 分析的詳細文字 | 內容查看 |
 
-## 📋 系統需求
+### ☁️ Google Sheets 整合
 
-- **Docker**: 20.10+ (推薦)
-- **Docker Compose**: 1.29+
-- **記憶體**: 最少1GB，推薦2GB
-- **存儲空間**: 最少5GB可用空間
-- **網絡**: 需要Internet連接以使用AI功能
+**快速使用**:
+1. 處理完成後點擊「創建 Google Sheets」
+2. 系統自動創建新試算表並匯入資料
+3. 自動設定共享權限，提供直接連結
 
-## 🛠️ 管理和監控
+**注意**: Google Sheets 整合功能需要配置 Google Apps Script URL
 
-### 基本指令
-```bash
-# 基本操作
-docker-compose ps                # 查看狀態
-docker-compose logs -f           # 查看日誌
-docker-compose down              # 停止服務
-docker-compose restart          # 重啟服務
+---
 
-# 生產部署
-docker-compose -f docker-compose.prod.yml up -d
+## 📚 文檔導覽
 
-# 自動測試
-.\docker-test.bat               # Windows完整測試
-
-# 手動清理
-docker system prune -a          # 清理Docker資源
-```
-
-### 監控介面
-- `/health` - 應用程式健康狀態
-- `/admin/storage` - 查看存儲使用狀況
-- `/admin/cleanup` - 手動執行清理
-
-### 自動清理
-- 每4小時自動清理舊檔案
-- 啟動時清理超過4小時的檔案
-- 支援手動清理和狀態監控
-
-## 🔒 安全特性
-
-- **容器安全**: 非root用戶執行
-- **資源限制**: CPU和記憶體使用限制
-- **網絡隔離**: 獨立的Docker網絡
-- **檔案權限**: 適當的檔案系統權限
-
-## 🤝 技術支援
-
-### 常見問題
-1. **端口衝突**: 修改docker-compose.yml中的端口映射
-2. **記憶體不足**: 調整Docker資源分配
-3. **API配額**: 檢查Gemini API使用限制
-4. **Google Sheets問題**: 檢查網路連線和API狀態
-
-### 疑難排解
-```bash
-# 檢查容器狀態
-docker-compose ps
-
-# 查看詳細日誌
-docker-compose logs --tail=50 newspaper-extractor
-
-# 重建映像
-docker-compose build --no-cache
-```
-
-## 📈 性能指標
-
-- **處理速度**: 單頁報紙 < 30秒
-- **記憶體使用**: 大文件處理時僅5MB
-- **並發支持**: 支援多用戶同時使用
-- **可用性**: 24/7運行能力
-
-## 🎯 應用場景
-
-- **新聞媒體**: 歷史報紙數位化
-- **人力資源**: 工作市場分析
-- **學術研究**: 就業趨勢研究
-- **資料採集**: 大規模工作資訊收集
-
-## 📄 授權條款
-
-本專案採用 MIT 授權條款。詳見 [LICENSE](LICENSE) 檔案。
+- 📖 **[詳細功能說明](docs/FEATURES.md)** - 完整功能特色與技術實現
+- 🏗️ **[系統架構文檔](docs/ARCHITECTURE.md)** - 技術架構與設計說明
+- ⚙️ **[配置與部署](docs/DEPLOYMENT.md)** - 進階配置與生產部署
+- ❓ **[常見問題](docs/FAQ.md)** - 故障排除與最佳實踐
 
 ---
 
 <div align="center">
-  <p>⭐ 如果這個專案對您有幫助，請給我們一個星星！</p>
-  <p>🐛 發現問題？歡迎提交 Issue 或 Pull Request</p>
+  <p><strong>🎉 感謝使用報紙工作廣告區塊提取系統！</strong></p>
+  <p>如果這個專案對您有幫助，請考慮給我們一個 ⭐ Star！</p>
 </div>

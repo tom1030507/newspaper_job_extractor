@@ -85,4 +85,7 @@ tests/
 # Documentation (if not needed in production)
 docs/
 *.md
-!README.md 
+!README.md
+
+# 忽略示例檔案
+newspaper/ 
