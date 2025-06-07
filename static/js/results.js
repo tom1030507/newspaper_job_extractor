@@ -460,7 +460,7 @@ function showSendResult(success, message, data = null) {
                 <div class="spreadsheet-details">
                     <div class="detail-item">
                         <i class="bi bi-table"></i>
-                        <span>已匯出 ${data && data.jobs_sent ? data.jobs_sent : '0'} 筆職缺資料</span>
+                        <span>已匯出 ${data && data.sent_jobs ? data.sent_jobs : (data && data.jobs_sent ? data.jobs_sent : '0')} 筆職缺資料</span>
                     </div>
                     <div class="detail-item">
                         <i class="bi bi-clock"></i>

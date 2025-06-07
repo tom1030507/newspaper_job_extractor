@@ -300,18 +300,31 @@ def create_app(config_name='default'):
                            'description' in image_storage._storage[page_key][filename]:
                             description = image_storage._storage[page_key][filename]['description']
                         
-                        # 過濾掉無效的職缺資料
-                        valid_jobs = [job for job in description if is_valid_job(job)]
-                        all_jobs.extend(valid_jobs)
+                        # 收集有效的工作資訊並添加來源圖片資訊
+                        if isinstance(description, list):
+                            for job in description:
+                                if is_valid_job(job):
+                                    job_info = job.copy()
+                                    job_info['來源圖片'] = filename
+                                    job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
+                                    all_jobs.append(job_info)
             elif multi_file_keys:
                 # 多檔案情況
                 multi_file_keys.sort()
 
                 for file_key in multi_file_keys:
-                    # 從 file_key 中解析出 page_num，如果存在
-                    page_num_str = ""
-                    if "_page" in file_key:
-                        page_num_str = f" (第 {file_key.split('_page')[-1]} 頁)"
+                    # 解析檔案編號和可能的頁碼
+                    key_parts = file_key.replace(f"{process_id}_", "").split('_')
+                    if 'page' in file_key:
+                        # 多檔案PDF的情況
+                        file_part = key_parts[0]  # file01
+                        page_part = key_parts[1]  # page1
+                        page_num = page_part.replace('page', '')
+                        file_display = f"{file_part}_page{page_num}"
+                    else:
+                        # 多檔案圖片的情況
+                        file_display = key_parts[0]
+                        page_num = file_display
 
                     for filename, image_data in image_storage._storage[file_key].items():
                         # 跳過偵錯圖像
@@ -325,9 +338,14 @@ def create_app(config_name='default'):
                            'description' in image_storage._storage[file_key][filename]:
                             description = image_storage._storage[file_key][filename]['description']
 
-                        # 過濾掉無效的職缺資料
-                        valid_jobs = [job for job in description if is_valid_job(job)]
-                        all_jobs.extend(valid_jobs)
+                        # 收集有效的工作資訊並添加來源圖片資訊
+                        if isinstance(description, list):
+                            for job in description:
+                                if is_valid_job(job):
+                                    job_info = job.copy()
+                                    job_info['來源圖片'] = filename
+                                    job_info['圖片編號'] = f"{file_display}_{filename.split('.')[0]}"
+                                    all_jobs.append(job_info)
             else:
                 # 單檔案情況
                 if process_id in image_storage._storage:
@@ -343,23 +361,49 @@ def create_app(config_name='default'):
                            'description' in image_storage._storage[process_id][filename]:
                             description = image_storage._storage[process_id][filename]['description']
 
-                        # 過濾掉無效的職缺資料
-                        valid_jobs = [job for job in description if is_valid_job(job)]
-                        all_jobs.extend(valid_jobs)
+                        # 收集有效的工作資訊並添加來源圖片資訊
+                        if isinstance(description, list):
+                            for job in description:
+                                if is_valid_job(job):
+                                    job_info = job.copy()
+                                    job_info['來源圖片'] = filename
+                                    job_info['圖片編號'] = filename.split('.')[0]
+                                    all_jobs.append(job_info)
+                else:
+                    return jsonify({'error': '處理結果不存在'}), 404
             
             if not all_jobs:
                 return jsonify({'error': '沒有有效的職缺資料可發送'}), 404
             
-            payload = {'jobs': all_jobs}
+            # 準備發送到 Google Apps Script 的資料
+            payload = {
+                'action': 'addJobs',
+                'jobs': all_jobs,
+                'metadata': {
+                    'process_id': process_id,
+                    'total_jobs': len(all_jobs),
+                    'timestamp': datetime.now().isoformat(),
+                    'source': 'newspaper_job_extractor'
+                }
+            }
             
             # 發送請求到 Google Apps Script
             response = requests.post(apps_script_url, json=payload, timeout=60)
             response.raise_for_status()
             
+            # 嘗試解析 Google Apps Script 的回應
+            try:
+                result = response.json() if response.content else {}
+            except:
+                result = {'response_text': response.text}
+            
             return jsonify({
-                'message': '成功發送資料到 Google Sheets',
+                'success': True,
+                'message': f'成功發送 {len(all_jobs)} 筆職缺資料到 Google Sheets',
                 'sent_jobs': len(all_jobs),
-                'response': response.text
+                'spreadsheet_url': result.get('spreadsheet_url', ''),
+                'spreadsheet_id': result.get('spreadsheet_id', ''),
+                'response': result
             }), 200
             
         except requests.exceptions.RequestException as e:
