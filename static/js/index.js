@@ -298,54 +298,77 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 開始處理
-    function startProcessing() {
-        // 顯示處理模態框
-        const processingModal = new bootstrap.Modal(document.getElementById('processingModal'));
-        processingModal.show();
-        
-        const progressBar = document.getElementById('progress-bar');
-        const steps = ['step-upload', 'step-process', 'step-analyze', 'step-complete'];
-        
-        // 重置進度條和步驟狀態
-        progressBar.style.width = '0%';
-        steps.forEach(step => {
-            const element = document.getElementById(step);
-            element.classList.remove('active', 'completed');
-        });
-        
-        // 設置初始狀態
-        document.getElementById('step-upload').classList.add('active');
-        
-        // 更新步驟狀態的函數
-        function updateStep(stepName, status = 'active') {
-            const stepMap = {
-                'upload': 0,
-                'process': 1, 
-                'analyze': 2,
-                'complete': 3,
-                'error': -1
-            };
-            
-            const stepIndex = stepMap[stepName];
-            if (stepIndex === -1) return; // 錯誤狀態不更新步驟
-            
-            steps.forEach((step, index) => {
-                const element = document.getElementById(step);
-                element.classList.remove('active', 'completed');
-                
-                if (index < stepIndex) {
-                    element.classList.add('completed');
-                } else if (index === stepIndex) {
-                    element.classList.add(status);
+    async function startProcessing() {
+        try {
+            // 首先獲取 process_id
+            const processResponse = await fetch('/create_process_id', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
                 }
             });
-        }
-        
-        // 清理之前的監聽器
-        socket.off('progress_update');
-        
-        // 監聽進度更新 - 不依賴特定的 process_id，因為後端會廣播
-        socket.on('progress_update', function(data) {
+            
+            if (!processResponse.ok) {
+                throw new Error('無法獲取處理ID');
+            }
+            
+            const processData = await processResponse.json();
+            currentProcessId = processData.process_id;
+            
+            // 加入對應的 SocketIO 房間
+            socket.emit('join_process', { process_id: currentProcessId });
+            
+            // 顯示處理模態框
+            const processingModal = new bootstrap.Modal(document.getElementById('processingModal'));
+            processingModal.show();
+            
+            const progressBar = document.getElementById('progress-bar');
+            const steps = ['step-upload', 'step-process', 'step-analyze', 'step-complete'];
+            
+            // 重置進度條和步驟狀態
+            progressBar.style.width = '0%';
+            steps.forEach(step => {
+                const element = document.getElementById(step);
+                element.classList.remove('active', 'completed');
+            });
+            
+            // 設置初始狀態
+            document.getElementById('step-upload').classList.add('active');
+            
+            // 更新步驟狀態的函數
+            function updateStep(stepName, status = 'active') {
+                const stepMap = {
+                    'upload': 0,
+                    'process': 1, 
+                    'analyze': 2,
+                    'complete': 3,
+                    'error': -1
+                };
+                
+                const stepIndex = stepMap[stepName];
+                if (stepIndex === -1) return; // 錯誤狀態不更新步驟
+                
+                steps.forEach((step, index) => {
+                    const element = document.getElementById(step);
+                    element.classList.remove('active', 'completed');
+                    
+                    if (index < stepIndex) {
+                        element.classList.add('completed');
+                    } else if (index === stepIndex) {
+                        element.classList.add(status);
+                    }
+                });
+            }
+            
+            // 清理之前的監聽器
+            socket.off('progress_update');
+            
+            // 監聽進度更新 - 現在只接收屬於當前 process_id 的更新
+            socket.on('progress_update', function(data) {
+                // 檢查進度更新是否屬於當前的 process_id
+                if (data.process_id !== currentProcessId) {
+                    return; // 忽略不是自己的進度更新
+                }
             // 更新進度條
             progressBar.style.width = Math.max(data.progress, 0) + '%';
             
@@ -414,47 +437,53 @@ document.addEventListener('DOMContentLoaded', function() {
                     // 跳轉將由表單回應處理
                 }, 500);
             }
-        });
-        
-        // 創建FormData並提交
-        const formData = new FormData();
-        selectedFiles.forEach(file => {
-            formData.append('files', file);
-        });
-        
-        // 添加處理選項
-        const autoRotate = document.getElementById('auto-rotate').checked;
-        const parallelProcess = document.getElementById('parallel-process').checked;
-        formData.append('auto_rotate', autoRotate);
-        formData.append('parallel_process', parallelProcess);
-        
-        // 實際提交表單
-        fetch('/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
+            });
+            
+            // 創建FormData並提交
+            const formData = new FormData();
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+            
+            // 添加處理選項和 process_id
+            const autoRotate = document.getElementById('auto-rotate').checked;
+            const parallelProcess = document.getElementById('parallel-process').checked;
+            formData.append('auto_rotate', autoRotate);
+            formData.append('parallel_process', parallelProcess);
+            formData.append('process_id', currentProcessId);
+            
+            // 實際提交表單
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
             if (response.ok) {
                 // 確保進度條達到100%
                 progressBar.style.width = '100%';
                 updateStep('complete', 'completed');
                 
                 setTimeout(() => {
-                    // 清理監聽器
+                    // 清理監聽器和離開房間
                     socket.off('progress_update');
+                    socket.emit('leave_process', { process_id: currentProcessId });
                     window.location.href = response.url;
                 }, 1000);
             } else {
                 throw new Error('處理失敗');
             }
-        })
-        .catch(error => {
-            // 清理監聽器
+            
+        } catch (error) {
+            // 清理監聽器和離開房間
             socket.off('progress_update');
-            processingModal.hide();
+            socket.emit('leave_process', { process_id: currentProcessId });
+            const processingModal = bootstrap.Modal.getInstance(document.getElementById('processingModal'));
+            if (processingModal) {
+                processingModal.hide();
+            }
             showNotification('處理過程中發生錯誤，請重試', 'danger');
             console.error('Upload error:', error);
-        });
+        }
     }
 
     // API密鑰表單處理

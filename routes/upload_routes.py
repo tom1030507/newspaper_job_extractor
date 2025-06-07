@@ -18,6 +18,13 @@ from services import cleanup_service
 
 upload_bp = Blueprint('upload', __name__)
 
+@upload_bp.route('/create_process_id', methods=['POST'])
+def create_process_id():
+    """創建新的 process_id 供客戶端使用"""
+    from flask import jsonify
+    process_id = str(uuid.uuid4())
+    return jsonify({'process_id': process_id})
+
 @upload_bp.route('/upload', methods=['POST'])
 def upload_file():
     """處理檔案上傳"""
@@ -63,8 +70,10 @@ def upload_file():
         flash('沒有有效的檔案', 'danger')
         return redirect(url_for('main.index'))
     
-    # 創建唯一的處理ID
-    process_id = str(uuid.uuid4())
+    # 獲取前端提供的 process_id，如果沒有則創建新的
+    process_id = request.form.get('process_id')
+    if not process_id:
+        process_id = str(uuid.uuid4())
     
     # 初始化進度追蹤
     progress_tracker.update_progress(process_id, "upload", 5, "開始處理檔案")

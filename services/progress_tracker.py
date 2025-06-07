@@ -32,12 +32,12 @@ class ProgressTracker:
         # 儲存進度資訊（使用原始process_id）
         self.storage.update_progress(original_process_id, step, progress, description)
         
-        # 通過 SocketIO 發送到前端（使用原始process_id）
+        # 通過 SocketIO 發送到前端（使用原始process_id，只發送給對應房間的客戶端）
         if self.socketio:
             self.socketio.emit('progress_update', {
                 'process_id': original_process_id,
                 **progress_data
-            })
+            }, room=f"process_{original_process_id}")
         
         print(f"進度更新 [{original_process_id}]: {step} - {progress}% - {description}")
     

@@ -8,6 +8,8 @@ import time
 import base64
 import tempfile
 import shutil
+import concurrent.futures
+from functools import partial
 from typing import List, Dict, Any, Optional
 from models.storage import image_storage
 from services.ai_service import ai_service
@@ -65,13 +67,16 @@ class ImageProcessingService:
             print("使用原始圖片進行區塊分割處理...")
             segment_start_progress = progress_start + int(progress_range * 0.65)
             self.progress_tracker.update_progress(process_id, "process", segment_start_progress, "執行區塊分割處理")
-            original_process_image(image, temp_dir, image_name)
+            
+            # 使用執行緒池來執行 CPU 密集型任務，避免阻塞伺服器
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(original_process_image, image, temp_dir, image_name)
+                future.result()  # 等待圖像處理完成
+            
             segment_done_progress = progress_start + int(progress_range * 0.8)
             self.progress_tracker.update_progress(process_id, "process", segment_done_progress, "區塊分割處理完成")
             
             # 將處理結果儲存到本地檔案系統
-            if process_id not in self.storage._storage:
-                self.storage._storage[process_id] = {}
             
             # 創建此次處理的結果目錄
             # 提取原始process_id（去除_page或_file後綴）
@@ -172,8 +177,6 @@ class ImageProcessingService:
             start_time = time.time()
             
             # 使用並行處理
-            import concurrent.futures
-            from functools import partial
             
             # 創建部分函數，固定參數
             analyze_func = partial(self._analyze_single_image, api_key, process_id)

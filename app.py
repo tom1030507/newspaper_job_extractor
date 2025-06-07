@@ -57,6 +57,26 @@ def create_app(config_name='default'):
         from flask import request
         print(f"客戶端已斷開: {request.sid}")
 
+    @socketio.on('join_process')
+    def handle_join_process(data):
+        """客戶端加入特定的 process_id 房間"""
+        from flask_socketio import join_room
+        from flask import request
+        process_id = data.get('process_id')
+        if process_id:
+            join_room(f"process_{process_id}")
+            print(f"客戶端 {request.sid} 加入房間: process_{process_id}")
+
+    @socketio.on('leave_process')
+    def handle_leave_process(data):
+        """客戶端離開特定的 process_id 房間"""
+        from flask_socketio import leave_room
+        from flask import request
+        process_id = data.get('process_id')
+        if process_id:
+            leave_room(f"process_{process_id}")
+            print(f"客戶端 {request.sid} 離開房間: process_{process_id}")
+
     @socketio.on('get_progress')
     def handle_get_progress(data):
         """處理客戶端請求進度資訊"""
