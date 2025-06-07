@@ -38,8 +38,8 @@ def create_app(config_name='default'):
         app, 
         cors_allowed_origins=Config.CORS_ALLOWED_ORIGINS,
         async_mode='threading',  # 明確指定異步模式
-        logger=False,  # 在生產環境中關閉日誌以提高性能
-        engineio_logger=False,
+        logger=app.config.get('DEBUG', False),  # 在調試模式下啟用日誌
+        engineio_logger=app.config.get('DEBUG', False),
         ping_timeout=60,  # 增加超時時間
         ping_interval=25,  # 設置心跳間隔
         allow_upgrades=True,  # 允許協議升級
@@ -107,6 +107,16 @@ def create_app(config_name='default'):
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
             'socketio_active': True
+        }), 200
+
+    @app.route('/')
+    def root():
+        """根路由健康檢查"""
+        from flask import jsonify
+        return jsonify({
+            'service': '報紙工作廣告提取系統',
+            'status': 'running',
+            'timestamp': datetime.now().isoformat()
         }), 200
     
     # 管理路由
@@ -396,7 +406,7 @@ if __name__ == '__main__':
     
     # 從配置讀取伺服器設定
     host = Config.FLASK_HOST
-    port = Config.FLASK_PORT
+    port = int(os.environ.get('PORT', Config.FLASK_PORT))
     debug = Config.FLASK_DEBUG
     
     print(f"🚀 啟動報紙工作廣告提取系統...")
@@ -406,4 +416,10 @@ if __name__ == '__main__':
     cleanup_status = f"最多保留 {Config.CLEANUP_MAX_FILE_COUNT} 個檔案" if Config.CLEANUP_ENABLE_COUNT_LIMIT else "已停用"
     print(f"📁 檔案數量限制: {cleanup_status}")
     
-    socketio.run(app, debug=debug, host=host, port=port) 
+    # 啟動清理調度器
+    try:
+        start_cleanup_scheduler()
+    except Exception as e:
+        print(f"⚠️ 清理調度器啟動警告: {e}")
+    
+    socketio.run(app, debug=debug, host=host, port=port, allow_unsafe_werkzeug=True) 
