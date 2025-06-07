@@ -44,7 +44,7 @@ ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
 # 暴露端口
-EXPOSE 5000
+EXPOSE 8080
 
 # 設置卷掛載點（用於持久化存儲）
 VOLUME ["/app/uploads", "/app/results"]

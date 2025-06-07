@@ -14,7 +14,8 @@ services:
     environment:
       - FLASK_ENV=production
       - FLASK_DEBUG=False
-      - GEMINI_API_KEY=${GEMINI_API_KEY}    restart: unless-stopped
+      - GEMINI_API_KEY=${GEMINI_API_KEY}    
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/health').raise_for_status()"]
       interval: 30s
