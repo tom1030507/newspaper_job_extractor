@@ -14,6 +14,7 @@ from config.settings import Config
 from utils.file_utils import allowed_file
 from services.progress_tracker import progress_tracker
 from services.image_processing_service import image_processing_service
+from services import cleanup_service
 
 upload_bp = Blueprint('upload', __name__)
 
@@ -112,9 +113,8 @@ def upload_file():
         progress_tracker.update_progress(process_id, "complete", 100, "所有檔案處理完成")
         
         # 執行檔案數量限制清理
-        from app import cleanup_by_file_count
         try:
-            cleanup_by_file_count()  # 使用配置檔中的預設值
+            cleanup_service.cleanup_by_file_count()  # 使用配置檔中的預設值
         except Exception as cleanup_error:
             print(f"檔案清理時發生錯誤（不影響主流程）: {str(cleanup_error)}")
         

@@ -17,13 +17,13 @@ from config import Config, config
 from models import image_storage, job_storage, progress_storage
 
 # 導入服務
-from services import progress_tracker, ai_service, image_processing_service
+from services import progress_tracker, ai_service, image_processing_service, cleanup_service
 
 # 導入路由
 from routes import main_bp, upload_bp, results_bp
 
 # 導入工具函數
-from utils import cleanup_old_files, cleanup_by_count, get_storage_info
+from utils import cleanup_old_files, get_storage_info
 
 def create_app(config_name='default'):
     """應用程式工廠函數"""
@@ -153,7 +153,7 @@ def create_app(config_name='default'):
             max_count = request.json.get('max_count', Config.CLEANUP_MAX_FILE_COUNT) if request.json else Config.CLEANUP_MAX_FILE_COUNT
             
             # 執行檔案數量清理
-            removed_process_ids = cleanup_by_file_count(max_count)
+            removed_process_ids = cleanup_service.cleanup_by_file_count(max_count)
             
             # 獲取清理後的存儲資訊
             storage_info = get_storage_info(Config.RESULTS_FOLDER)
@@ -248,40 +248,20 @@ def create_app(config_name='default'):
                            filename in image_storage._storage[page_key] and \
                            'description' in image_storage._storage[page_key][filename]:
                             description = image_storage._storage[page_key][filename]['description']
-                        else:
-                            print(f"警告: 在 send_to_spreadsheet 中找不到圖片 {filename} (page_key: {page_key}) 的描述，將使用空描述。")
-                            description = [{
-                                "工作": "描述未找到",
-                                "行業": "", "時間": "", "薪資": "",
-                                "地點": "", "聯絡方式": "", "其他": ""
-                            }]
                         
-                        # 收集有效的工作資訊
-                        if isinstance(description, list):
-                            for i, job in enumerate(description):
-                                if is_valid_job(job):
-                                    job_info = job.copy()
-                                    job_info['來源圖片'] = filename
-                                    job_info['圖片編號'] = f"page{page_num}_{filename.split('.')[0]}"
-                                    all_jobs.append(job_info)
+                        # 過濾掉無效的職缺資料
+                        valid_jobs = [job for job in description if is_valid_job(job)]
+                        all_jobs.extend(valid_jobs)
             elif multi_file_keys:
                 # 多檔案情況
-                multi_file_keys.sort(key=lambda x: x.split('_file')[-1])
-                
+                multi_file_keys.sort()
+
                 for file_key in multi_file_keys:
-                    # 解析檔案編號和可能的頁碼
-                    key_parts = file_key.replace(f"{process_id}_", "").split('_')
-                    if 'page' in file_key:
-                        # 多檔案PDF的情況
-                        file_part = key_parts[0]  # file01
-                        page_part = key_parts[1]  # page1
-                        page_num = page_part.replace('page', '')
-                        file_display = f"{file_part}_page{page_num}"
-                    else:
-                        # 多檔案圖片的情況
-                        file_display = key_parts[0]
-                        page_num = file_display
-                    
+                    # 從 file_key 中解析出 page_num，如果存在
+                    page_num_str = ""
+                    if "_page" in file_key:
+                        page_num_str = f" (第 {file_key.split('_page')[-1]} 頁)"
+
                     for filename, image_data in image_storage._storage[file_key].items():
                         # 跳過偵錯圖像
                         if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
@@ -293,162 +273,61 @@ def create_app(config_name='default'):
                            filename in image_storage._storage[file_key] and \
                            'description' in image_storage._storage[file_key][filename]:
                             description = image_storage._storage[file_key][filename]['description']
-                        else:
-                            print(f"警告: 在 send_to_spreadsheet 中找不到圖片 {filename} (file_key: {file_key}) 的描述，將使用空描述。")
-                            description = [{
-                                "工作": "描述未找到",
-                                "行業": "", "時間": "", "薪資": "",
-                                "地點": "", "聯絡方式": "", "其他": ""
-                            }]
-                        
-                        # 收集有效的工作資訊
-                        if isinstance(description, list):
-                            for i, job in enumerate(description):
-                                if is_valid_job(job):
-                                    job_info = job.copy()
-                                    job_info['來源圖片'] = filename
-                                    job_info['圖片編號'] = f"{file_display}_{filename.split('.')[0]}"
-                                    all_jobs.append(job_info)
-            elif process_id in image_storage._storage:
-                # 單一圖像情況
-                for filename, image_data in image_storage._storage[process_id].items():
-                    # 跳過偵錯圖像
-                    if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
-                        continue
-                    
-                    # 直接從 image_storage 獲取描述
-                    description = []
-                    if process_id in image_storage._storage and \
-                       filename in image_storage._storage[process_id] and \
-                       'description' in image_storage._storage[process_id][filename]:
-                        description = image_storage._storage[process_id][filename]['description']
-                    else:
-                        print(f"警告: 在 send_to_spreadsheet 中找不到圖片 {filename} (process_id: {process_id}) 的描述，將使用空描述。")
-                        description = [{
-                            "工作": "描述未找到",
-                            "行業": "", "時間": "", "薪資": "",
-                            "地點": "", "聯絡方式": "", "其他": ""
-                        }]
-                    
-                    # 收集有效的工作資訊
-                    if isinstance(description, list):
-                        for i, job in enumerate(description):
-                            if is_valid_job(job):
-                                job_info = job.copy()
-                                job_info['來源圖片'] = filename
-                                job_info['圖片編號'] = filename.split('.')[0]
-                                all_jobs.append(job_info)
+
+                        # 過濾掉無效的職缺資料
+                        valid_jobs = [job for job in description if is_valid_job(job)]
+                        all_jobs.extend(valid_jobs)
             else:
-                return jsonify({'error': '處理結果不存在'}), 404
+                # 單檔案情況
+                if process_id in image_storage._storage:
+                    for filename, image_data in image_storage._storage[process_id].items():
+                        # 跳過偵錯圖像
+                        if any(debug_type in filename for debug_type in ['_original', '_mask_', '_final_combined']):
+                            continue
+                        
+                        # 直接從 image_storage 獲取描述
+                        description = []
+                        if process_id in image_storage._storage and \
+                           filename in image_storage._storage[process_id] and \
+                           'description' in image_storage._storage[process_id][filename]:
+                            description = image_storage._storage[process_id][filename]['description']
+
+                        # 過濾掉無效的職缺資料
+                        valid_jobs = [job for job in description if is_valid_job(job)]
+                        all_jobs.extend(valid_jobs)
             
             if not all_jobs:
-                return jsonify({'error': '沒有找到有效的職缺資料'}), 404
+                return jsonify({'error': '沒有有效的職缺資料可發送'}), 404
             
-            # 準備發送到 Google Apps Script 的資料
-            payload = {
-                'action': 'addJobs',
-                'jobs': all_jobs,
-                'metadata': {
-                    'process_id': process_id,
-                    'total_jobs': len(all_jobs),
-                    'timestamp': datetime.now().isoformat(),
-                    'source': 'newspaper_job_extractor'
-                }
-            }
+            payload = {'jobs': all_jobs}
             
-            # 添加詳細日誌記錄
-            print(f"準備發送資料到 Google Apps Script: {apps_script_url}")
-            print(f"職缺資料數量: {len(all_jobs)}")
-            print(f"第一筆職缺資料範例: {all_jobs[0] if all_jobs else 'None'}")
-            print(f"Payload 大小: {len(str(payload))} 字符")
+            # 發送請求到 Google Apps Script
+            response = requests.post(apps_script_url, json=payload, timeout=60)
+            response.raise_for_status()
             
-            # 發送資料到 Google Apps Script
-            headers = {
-                'Content-Type': 'application/json'
-            }
+            return jsonify({
+                'message': '成功發送資料到 Google Sheets',
+                'sent_jobs': len(all_jobs),
+                'response': response.text
+            }), 200
             
-            try:
-                response = requests.post(apps_script_url, json=payload, headers=headers, timeout=Config.REQUEST_TIMEOUT)
-                print(f"HTTP 回應狀態碼: {response.status_code}")
-                print(f"HTTP 回應內容: {response.text[:500]}...")  # 只顯示前500字符
-            except Exception as e:
-                print(f"發送請求時發生錯誤: {str(e)}")
-                raise
-            
-            if response.status_code == 200:
-                result = response.json() if response.content else {}
-                return jsonify({
-                    'success': True,
-                    'message': f'成功發送 {len(all_jobs)} 筆職缺資料到 Google Sheets',
-                    'jobs_sent': len(all_jobs),
-                    'spreadsheet_url': result.get('spreadsheet_url', ''),
-                    'spreadsheet_id': result.get('spreadsheet_id', ''),
-                    'response': result
-                }), 200
-            else:
-                return jsonify({
-                    'error': f'發送失敗，狀態碼: {response.status_code}',
-                    'response_text': response.text
-                }), response.status_code
-                
-        except requests.exceptions.Timeout:
-            return jsonify({'error': '請求超時，請檢查 Google Apps Script URL 是否正確'}), 408
         except requests.exceptions.RequestException as e:
-            return jsonify({'error': f'網路請求錯誤: {str(e)}'}), 500
+            return jsonify({'error': f'連接 Google Apps Script 失敗: {str(e)}'}), 500
         except Exception as e:
-            return jsonify({'error': f'發生錯誤: {str(e)}'}), 500
-    
+            return jsonify({'error': f'發送資料時發生錯誤: {str(e)}'}), 500
+
     return app, socketio
-
-def cleanup_memory_storage(process_id):
-    """清理記憶體中的過期資料"""
-    # 清理所有相關的process_id記錄
-    image_storage.remove_process(process_id)
-    job_storage.remove_process(process_id)
-    progress_tracker.remove_progress(process_id)
-    print(f"清理記憶體資料: {process_id}")
-
-def cleanup_by_file_count(max_count: int = None):
-    """
-    執行檔案數量限制清理，同時清理記憶體存儲
-    
-    Args:
-        max_count: 最大保留檔案數量，如果為 None 則使用配置中的預設值
-    """
-    # 檢查是否啟用檔案數量限制清理
-    if not Config.CLEANUP_ENABLE_COUNT_LIMIT:
-        print("檔案數量限制清理已停用")
-        return []
-    
-    # 使用配置中的預設值
-    if max_count is None:
-        max_count = Config.CLEANUP_MAX_FILE_COUNT
-    
-    print(f"執行檔案數量限制清理（最多保留 {max_count} 個檔案）...")
-    
-    # 執行檔案數量清理
-    removed_process_ids = cleanup_by_count(Config.RESULTS_FOLDER, max_count)
-    
-    # 清理對應的記憶體存儲
-    for process_id in removed_process_ids:
-        cleanup_memory_storage(process_id)
-        print(f"已清理檔案和記憶體資料: {process_id}")
-    
-    if removed_process_ids:
-        print(f"總共清理了 {len(removed_process_ids)} 個過期檔案")
-    
-    return removed_process_ids
 
 def start_cleanup_scheduler():
     """啟動定時清理任務"""
     def run_scheduled_cleanup():
         print("執行定時清理任務...")
         # 先執行時間基礎的清理
-        cleanup_old_files(Config.UPLOAD_FOLDER, Config.RESULTS_FOLDER, Config.CLEANUP_MAX_AGE_HOURS)
+        cleanup_old_files(Config.UPLOAD_FOLDER, Config.RESULTS_FOLDER, Config.CLEANUP_MAX_AGE_HOURS) 
         # 再執行數量限制清理（如果啟用）
         if Config.CLEANUP_ENABLE_COUNT_LIMIT:
-            cleanup_by_file_count()
-    
+            cleanup_service.cleanup_by_file_count()
+
     # 設置每4小時執行一次清理
     schedule.every(Config.CLEANUP_INTERVAL_HOURS).hours.do(run_scheduled_cleanup)
     
@@ -467,14 +346,12 @@ def start_cleanup_scheduler():
 app, socketio = create_app()
 
 if __name__ == '__main__':
-    # 啟動定時清理任務
-    start_cleanup_scheduler()
-    
     # 立即執行一次清理（清理啟動時的舊檔案）
     cleanup_old_files(Config.UPLOAD_FOLDER, Config.RESULTS_FOLDER, Config.CLEANUP_MAX_AGE_HOURS)
+
     # 執行數量限制清理（如果啟用）
     if Config.CLEANUP_ENABLE_COUNT_LIMIT:
-        cleanup_by_file_count()
+        cleanup_service.cleanup_by_file_count()
     
     # 從配置讀取伺服器設定
     host = Config.FLASK_HOST
