@@ -687,6 +687,41 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
     document.head.appendChild(style);
 
+    // 允許 Modal 背景滾動的功能
+    function enableModalBackgroundScroll() {
+        // 監聽所有 Modal 的顯示事件
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('show.bs.modal', function() {
+                // 當 Modal 顯示時，移除 body 的 overflow: hidden
+                setTimeout(() => {
+                    document.body.style.overflow = 'auto';
+                    document.body.style.paddingRight = '0px';
+                }, 10);
+            });
+            
+            modal.addEventListener('shown.bs.modal', function() {
+                // Modal 完全顯示後，確保 body 可以滾動
+                document.body.style.overflow = 'auto';
+                document.body.style.paddingRight = '0px';
+            });
+            
+            modal.addEventListener('hide.bs.modal', function() {
+                // Modal 隱藏時，恢復正常滾動
+                document.body.style.overflow = 'auto';
+                document.body.style.paddingRight = '0px';
+            });
+            
+            modal.addEventListener('hidden.bs.modal', function() {
+                // Modal 完全隱藏後，確保 body 可以滾動
+                document.body.style.overflow = 'auto';
+                document.body.style.paddingRight = '0px';
+            });
+        });
+    }
+
+    // 啟用 Modal 背景滾動
+    enableModalBackgroundScroll();
+
     // 初始化視覺效果
     addVisualEffects();
 
