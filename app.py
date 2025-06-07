@@ -33,8 +33,18 @@ def create_app(config_name='default'):
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
     
-    # 初始化 SocketIO
-    socketio = SocketIO(app, cors_allowed_origins=Config.CORS_ALLOWED_ORIGINS)
+    # 初始化 SocketIO - 添加更多配置以改善 Docker 環境下的穩定性
+    socketio = SocketIO(
+        app, 
+        cors_allowed_origins=Config.CORS_ALLOWED_ORIGINS,
+        async_mode='threading',  # 明確指定異步模式
+        logger=False,  # 在生產環境中關閉日誌以提高性能
+        engineio_logger=False,
+        ping_timeout=60,  # 增加超時時間
+        ping_interval=25,  # 設置心跳間隔
+        allow_upgrades=True,  # 允許協議升級
+        transports=['websocket', 'polling']  # 允許多種傳輸方式
+    )
     
     # 設置進度追蹤器的 SocketIO 實例
     progress_tracker.socketio = socketio
@@ -87,6 +97,17 @@ def create_app(config_name='default'):
                 'process_id': process_id,
                 **progress_data
             })
+    
+    # 健康檢查路由
+    @app.route('/health')
+    def health_check():
+        """健康檢查端點"""
+        from flask import jsonify
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'socketio_active': True
+        }), 200
     
     # 管理路由
     @app.route('/admin/storage')

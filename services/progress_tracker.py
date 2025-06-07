@@ -2,6 +2,7 @@
 進度追蹤服務
 """
 import time
+import sys
 from typing import Optional
 from models.storage import progress_storage
 
@@ -32,14 +33,24 @@ class ProgressTracker:
         # 儲存進度資訊（使用原始process_id）
         self.storage.update_progress(original_process_id, step, progress, description)
         
+        # 立即刷新輸出以確保在 Docker 環境中的即時顯示
+        print(f"進度更新 [{original_process_id}]: {step} - {progress}% - {description}")
+        sys.stdout.flush()
+        
         # 通過 SocketIO 發送到前端（使用原始process_id，只發送給對應房間的客戶端）
         if self.socketio:
-            self.socketio.emit('progress_update', {
-                'process_id': original_process_id,
-                **progress_data
-            }, room=f"process_{original_process_id}")
-        
-        print(f"進度更新 [{original_process_id}]: {step} - {progress}% - {description}")
+            try:
+                self.socketio.emit('progress_update', {
+                    'process_id': original_process_id,
+                    **progress_data
+                }, room=f"process_{original_process_id}")
+                
+                # 強制刷新 SocketIO 事件
+                self.socketio.sleep(0)
+                
+            except Exception as e:
+                print(f"SocketIO 發送錯誤: {e}")
+                sys.stdout.flush()
     
     def get_progress(self, process_id: str) -> Optional[dict]:
         """獲取進度資訊"""

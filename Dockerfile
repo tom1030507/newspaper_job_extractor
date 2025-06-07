@@ -42,6 +42,11 @@ ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=utf-8
+# 添加 SocketIO 相關環境變數
+ENV FLASK_SOCKETIO_ASYNC_MODE=threading
+ENV SOCKETIO_LOGGER=True
+ENV SOCKETIO_ENGINEIO_LOGGER=True
 
 # 暴露端口
 EXPOSE 8080
@@ -49,5 +54,5 @@ EXPOSE 8080
 # 設置卷掛載點（用於持久化存儲）
 VOLUME ["/app/uploads", "/app/results"]
 
-# 啟動命令
-CMD ["python", "app.py"] 
+# 啟動命令 - 添加輸出刷新選項
+CMD ["python", "-u", "app.py"] 

@@ -280,21 +280,66 @@ document.addEventListener('DOMContentLoaded', function() {
         startProcessing();
     });
 
-    // 初始化 SocketIO 連接
-    const socket = io();
+    // 初始化 SocketIO 連接 - 增強 Docker 環境下的穩定性
+    const socket = io({
+        transports: ['websocket', 'polling'],  // 明確指定傳輸方式
+        upgrade: true,  // 允許協議升級
+        rememberUpgrade: true,  // 記住升級後的協議
+        timeout: 20000,  // 連接超時時間
+        forceNew: false,  // 不強制新連接
+        reconnection: true,  // 啟用自動重連
+        reconnectionDelay: 1000,  // 重連延遲
+        reconnectionDelayMax: 5000,  // 最大重連延遲
+        maxReconnectionAttempts: 5  // 最大重連次數
+    });
     let currentProcessId = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
     
     // 添加連接狀態監聽
     socket.on('connect', function() {
         console.log('SocketIO 已連接，ID:', socket.id);
+        reconnectAttempts = 0;  // 重置重連計數
+        
+        // 如果有正在進行的處理，重新加入房間
+        if (currentProcessId) {
+            socket.emit('join_process', { process_id: currentProcessId });
+            // 請求當前進度
+            socket.emit('get_progress', { process_id: currentProcessId });
+        }
     });
     
-    socket.on('disconnect', function() {
-        console.log('SocketIO 已斷開連接');
+    socket.on('disconnect', function(reason) {
+        console.log('SocketIO 已斷開連接，原因:', reason);
+        
+        // 如果是伺服器斷開連接，嘗試重連
+        if (reason === 'io server disconnect') {
+            socket.connect();
+        }
     });
     
     socket.on('connect_error', function(error) {
         console.error('SocketIO 連接錯誤:', error);
+        reconnectAttempts++;
+        
+        if (reconnectAttempts >= maxReconnectAttempts) {
+            console.warn('達到最大重連次數，停止重連');
+            showNotification('連接伺服器失敗，請刷新頁面重試', 'warning');
+        }
+    });
+    
+    socket.on('reconnect', function(attemptNumber) {
+        console.log('SocketIO 重連成功，嘗試次數:', attemptNumber);
+        showNotification('已重新連接到伺服器', 'success');
+    });
+    
+    socket.on('reconnect_error', function(error) {
+        console.error('SocketIO 重連錯誤:', error);
+    });
+    
+    socket.on('reconnect_failed', function() {
+        console.error('SocketIO 重連失敗');
+        showNotification('無法重新連接到伺服器，請刷新頁面', 'danger');
     });
 
     // 開始處理

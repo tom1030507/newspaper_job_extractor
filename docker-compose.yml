@@ -12,7 +12,13 @@ services:
       - ./.env:/app/.env:ro
     environment:
       - FLASK_ENV=production
-      - GEMINI_API_KEY=${GEMINI_API_KEY}    
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # 添加 SocketIO 和進度條相關環境變數
+      - PYTHONUNBUFFERED=1
+      - PYTHONIOENCODING=utf-8
+      - FLASK_SOCKETIO_ASYNC_MODE=threading
+      - SOCKETIO_LOGGER=false
+      - SOCKETIO_ENGINEIO_LOGGER=false
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/health').raise_for_status()"]
@@ -33,6 +39,9 @@ services:
     read_only: false
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
+    # 添加 stdin 和 tty 以改善容器內的互動性
+    stdin_open: true
+    tty: true
 
 networks:
   app-network:
