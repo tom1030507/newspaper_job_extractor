@@ -280,17 +280,14 @@ document.addEventListener('DOMContentLoaded', function() {
         startProcessing();
     });
 
-    // 初始化 SocketIO 連接 - 增強 Docker 環境下的穩定性
+    // 初始化 SocketIO 連接
     const socket = io({
         transports: ['websocket', 'polling'],  // 明確指定傳輸方式
         upgrade: true,  // 允許協議升級
         rememberUpgrade: true,  // 記住升級後的協議
         timeout: 20000,  // 連接超時時間
         forceNew: false,  // 不強制新連接
-        reconnection: true,  // 啟用自動重連
-        reconnectionDelay: 1000,  // 重連延遲
-        reconnectionDelayMax: 5000,  // 最大重連延遲
-        maxReconnectionAttempts: 5  // 最大重連次數
+        reconnection: false,  // 停用自動重連
     });
     let currentProcessId = null;
     let reconnectAttempts = 0;
@@ -333,15 +330,6 @@ document.addEventListener('DOMContentLoaded', function() {
         showNotification('已重新連接到伺服器', 'success');
     });
     
-    socket.on('reconnect_error', function(error) {
-        console.error('SocketIO 重連錯誤:', error);
-    });
-    
-    socket.on('reconnect_failed', function() {
-        console.error('SocketIO 重連失敗');
-        showNotification('無法重新連接到伺服器，請刷新頁面', 'danger');
-    });
-
     // 開始處理
     async function startProcessing() {
         try {

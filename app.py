@@ -36,15 +36,15 @@ def create_app(config_name='default'):
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
     
-    # 初始化 SocketIO - 添加更多配置以改善 Docker 環境下的穩定性
+    # 初始化 SocketIO
     socketio = SocketIO(
         app, 
         cors_allowed_origins=Config.CORS_ALLOWED_ORIGINS,
         async_mode='threading',  # 明確指定異步模式
         logger=app.config.get('DEBUG', False),  # 在調試模式下啟用日誌
         engineio_logger=app.config.get('DEBUG', False),
-        ping_timeout=60,  # 增加超時時間
-        ping_interval=25,  # 設置心跳間隔
+        ping_timeout=120,  # 增加超時時間到 2 分鐘
+        ping_interval=60,  # 設置心跳間隔為 1 分鐘，減少頻率
         allow_upgrades=True,  # 允許協議升級
         transports=['websocket', 'polling']  # 允許多種傳輸方式
     )
